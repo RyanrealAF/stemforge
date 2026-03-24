@@ -24,7 +24,7 @@ export const StemForge: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [hfUrl, setHfUrl] = useState('');
+  const [hfUrl, setHfUrl] = useState('https://Ryanrealaf-stemforge.hf.space');
   const [showSettings, setShowSettings] = useState(false);
 
   const [stems, setStems] = useState<StemState>({
