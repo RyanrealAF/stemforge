@@ -55,6 +55,10 @@ async def get_status(job_id: str):
 async def run_demucs(job_id: str, file_path: str):
     job = jobs[job_id]
     try:
+        # Set a generic progress value to indicate processing has started
+        job["progress"] = 50
+        job["status"] = "processing"
+
         command = [
             "python3", "-m", "demucs.separate",
             "-n", "htdemucs",
@@ -68,28 +72,13 @@ async def run_demucs(job_id: str, file_path: str):
             stdout=subprocess.PIPE,
         )
 
-        progress_regex = re.compile(r"(\d+)\s*%\|")
-        
-        if process.stderr:
-            while not process.stderr.at_eof():
-                line_bytes = await process.stderr.readline()
-                if not line_bytes:
-                    break
-                
-                line = line_bytes.decode('utf-8', 'ignore').strip()
-                # Add every line from stderr to our log
-                job["log"].append(line)
-                
-                if '\r' in line:
-                    line = line.split('\r')[-1]
-
-                match = progress_regex.search(line)
-                if match:
-                    progress_percent = int(match.group(1))
-                    job["progress"] = min(progress_percent, 99)
-
+        # Wait for the process to finish and read both stdout and stderr
+        # This is a more robust method that avoids deadlocks
         stdout_data, stderr_data = await process.communicate()
 
+        # Store logs for debugging if needed
+        if stdout_data:
+            job['log'].extend(stdout_data.decode('utf-8', 'ignore').strip().split('\n'))
         if stderr_data:
             job['log'].extend(stderr_data.decode('utf-8', 'ignore').strip().split('\n'))
 
@@ -98,12 +87,21 @@ async def run_demucs(job_id: str, file_path: str):
             job["progress"] = 100
         else:
             job["status"] = "error"
-            job["error"] = "Processing failed. See log for details."
+            # Provide a more useful error message from the logs
+            error_message = "Processing failed. Check logs for details."
+            if stderr_data:
+                # Try to find a meaningful error line in the last few lines of stderr
+                error_lines = stderr_data.decode('utf-8', 'ignore').strip().split('\n')
+                if error_lines:
+                    error_message = error_lines[-1]
+
+            job["error"] = error_message
     
     except Exception as e:
         job["status"] = "error"
         job["error"] = str(e)
         job['log'].append(str(e))
     finally:
+        # Clean up the original uploaded file
         if os.path.exists(file_path):
             os.remove(file_path)
