@@ -1,6 +1,7 @@
-fastapi
-uvicorn
-demucs
+--extra-index-url https://download.pytorch.org/whl/cpu
 torch
 torchaudio
+fastapi
+uvicorn
 python-multipart
+demucs
