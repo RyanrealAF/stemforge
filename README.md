@@ -50,15 +50,18 @@ The project went through several key troubleshooting phases:
 1.  **Initial Problem: Processing Stuck at 99%**
     - **Symptom:** The frontend progress bar would reach 99% and never complete.
     - **Root Cause:** A **deadlock** in the `app.py` backend. The original code attempted to read the progress percentage from the `demucs` process in real-time. This method was unreliable and caused both the main script and the `demucs` process to wait for each other indefinitely.
-    - **Solution:** The `run_demucs` function in `app.py` was rewritten to use `await process.communicate()`. This is a more robust method that simply waits for the `demucs` subprocess to finish completely, resolving the deadlock. The trade-off is the loss of a real-time progress bar in favor of system stability.
+    - **Solution:** The `run_demucs` function in `app.py` was rewritten to use `await process.communicate()`. This is a more robust method that simply waits for the `demucs` subprocess to finish completely, resolving the deadlock.
 
 2.  **Second Problem: Hugging Face Build Failures**
     - **Symptom:** After fixing the deadlock, deploying the application to Hugging Face resulted in a build error.
-    - **Root Cause:** The `demucs` library depends on the `torch` machine learning library. By default, the installer (`pip`) would try to fetch a version of `torch` that required a GPU. The free Hugging Face Spaces provide a CPU-only environment, causing the build to fail because it couldn'''t find a compatible library version.
-    - **Solution:** The `requirements.txt` file was significantly modified to be very explicit about dependencies.
-        - `--extra-index-url https://download.pytorch.org/whl/cpu`: This line was added to tell the installer to *also* look in the official PyTorch repository that contains CPU-only versions.
-        - `torch` and `torchaudio` were explicitly added to the list. This ensures that the correct CPU versions are installed *before* the installer tries to install `demucs`.
+    - **Root Cause:** The `demucs` library depends on `torch`, but the installer was trying to fetch a GPU version. The Hugging Face server is CPU-only, causing a compatibility failure.
+    - **Solution:** The `requirements.txt` file was modified to point to the CPU-specific repository for `torch` and to install `torch` and `torchaudio` explicitly.
+
+3.  **Third Problem: Missing `torchcodec` Dependency**
+    - **Symptom:** After fixing the build error, the app would fail during processing with an `ImportError: TorchCodec is required...` message shown on the frontend.
+    - **Root Cause:** A sub-component of `demucs` requires the `torchcodec` package to save the final audio files. This package was not included in our list of dependencies.
+    - **Solution:** The `torchcodec` package was added to the `requirements.txt` file.
 
 ### Current Status
 
-The codebase is now believed to be stable and correct. The `app.py` script resolves the processing deadlock, and the `requirements.txt` file should allow the project to build successfully on a Hugging Face CPU environment. The user is in the process of deploying this final version to their Hugge Face Space.
+The codebase has been updated to fix the runtime `ImportError` related to the missing `torchcodec` package. The `requirements.txt` file now includes this dependency. The user is in the process of deploying this latest version to their Hugging Face Space. This is believed to be the final dependency required to make the application fully functional.
