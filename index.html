@@ -1,13 +1,1466 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>StemForge</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>StemForge — AI Signal Processor v4.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/wavesurfer.js/7.7.3/wavesurfer.min.js"></script>
+<style>
+:root {
+  --bg: #09090b;
+  --bg2: #111114;
+  --bg3: #1a1a1f;
+  --border: rgba(255,255,255,0.07);
+  --orange: #f97316;
+  --orange-dim: rgba(249,115,22,0.15);
+  --blue: #3b82f6;
+  --blue-dim: rgba(59,130,246,0.12);
+  --purple: #a855f7;
+  --green: #22c55e;
+  --text: #f4f4f5;
+  --muted: #71717a;
+  --faint: #3f3f46;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+html{scroll-behavior:smooth}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ─── Noise texture overlay ─── */
+body::before {
+  content:'';
+  position:fixed;
+  inset:0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events:none;
+  z-index:0;
+  opacity:.4;
+}
+
+/* ─── Header ─── */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(9,9,11,0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 2rem;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--orange);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 24px rgba(249,115,22,0.4);
+  flex-shrink: 0;
+}
+
+.logo-icon svg { width: 22px; height: 22px; }
+
+.logo-text h1 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.6rem;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  color: var(--text);
+}
+
+.logo-text p {
+  font-size: 0.6rem;
+  font-family: 'Space Mono', monospace;
+  color: var(--muted);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-icon {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  transition: background .15s, color .15s;
+}
+.btn-icon:hover { background: var(--bg3); color: var(--text); }
+
+.divider-v {
+  width: 1px;
+  height: 28px;
+  background: var(--border);
+}
+
+.btn-upload {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--text);
+  color: #000;
+  border: none;
+  border-radius: 10px;
+  padding: 0 18px;
+  height: 38px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background .15s, transform .1s;
+  position: relative;
+  overflow: hidden;
+}
+.btn-upload:hover { background: var(--orange); }
+.btn-upload:active { transform: scale(0.96); }
+.btn-upload input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+/* ─── Main ─── */
+main {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  position: relative;
+  z-index: 1;
+}
+
+/* ─── Card ─── */
+.card {
+  background: rgba(17,17,20,0.6);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 2rem;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(8px);
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--orange), var(--blue), var(--orange));
+  opacity: 0.2;
+}
+
+.card-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.35em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.badge {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.6rem;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.badge-blue { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(59,130,246,0.2); }
+.badge-green { background: rgba(34,197,94,0.1); color: var(--green); border: 1px solid rgba(34,197,94,0.2); display:flex; align-items:center; gap:5px; }
+.badge-green::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--green); animation: pulse-dot 1.5s ease-in-out infinite; display:block; }
+
+/* ─── Waveform ─── */
+.waveform-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.transport {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-transport {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--bg3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  transition: background .15s, transform .1s;
+}
+.btn-transport:hover { background: var(--faint); }
+.btn-transport:active { transform: scale(0.93); }
+
+.btn-play {
+  width: 56px;
+  height: 56px;
+  background: var(--orange);
+  color: #000;
+  box-shadow: 0 0 20px rgba(249,115,22,0.3);
+}
+.btn-play:hover { background: #fb923c; box-shadow: 0 0 30px rgba(249,115,22,0.5); }
+.btn-play:disabled { background: var(--bg3); color: var(--muted); cursor: not-allowed; box-shadow: none; }
+
+.meta-info {
+  display: flex;
+  gap: 2rem;
+}
+
+.meta-item {
+  text-align: right;
+}
+.meta-label {
+  display: block;
+  font-size: 0.58rem;
+  font-family: 'Space Mono', monospace;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  margin-bottom: 2px;
+}
+.meta-value {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+#waveform { width: 100%; }
+
+.waveform-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(9,9,11,0.85);
+  backdrop-filter: blur(4px);
+  border-radius: 24px;
+  flex-direction: column;
+  gap: 12px;
+  transition: opacity .3s;
+}
+.waveform-empty.hidden { opacity: 0; pointer-events: none; }
+
+.empty-icon { color: var(--faint); opacity: 0.5; }
+.empty-text { color: var(--muted); font-size: 0.9rem; }
+
+/* ─── Processing Overlay ─── */
+.processing-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(9,9,11,0.95);
+  backdrop-filter: blur(12px);
+  border-radius: 24px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .3s;
+}
+.processing-overlay.active { opacity: 1; pointer-events: all; }
+
+.processing-icon {
+  width: 64px;
+  height: 64px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.processing-icon::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(249,115,22,0.2);
+  animation: glow-pulse 1.5s ease-in-out infinite;
+  filter: blur(12px);
+}
+
+.proc-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.5rem;
+  letter-spacing: 0.05em;
+}
+
+.proc-sub {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-family: 'Space Mono', monospace;
+}
+
+.progress-bar {
+  width: 320px;
+  max-width: 90%;
+  height: 4px;
+  background: var(--bg3);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--orange);
+  border-radius: 99px;
+  width: 0%;
+  transition: width .4s cubic-bezier(.4,0,.2,1);
+}
+
+.progress-pct {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+}
+
+/* ─── Two-col grid ─── */
+.bottom-grid {
+  display: grid;
+  grid-template-columns: 5fr 7fr;
+  gap: 2rem;
+}
+
+@media (max-width: 900px) {
+  .bottom-grid { grid-template-columns: 1fr; }
+}
+
+/* ─── Drum Knobs ─── */
+.drum-stage {
+  position: relative;
+  height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.knob-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  position: absolute;
+}
+
+.knob-wrap.kick { top: 0; left: 50%; transform: translateX(-50%); }
+.knob-wrap.snare { bottom: 0; left: 10%; }
+.knob-wrap.hihat { bottom: 0; right: 10%; }
+
+.knob-outer {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 3px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: ns-resize;
+  position: relative;
+  transition: border-color .2s, transform .15s;
+  user-select: none;
+}
+.knob-outer:hover { transform: scale(1.04); }
+.knob-outer.mode-gain { border-color: rgba(249,115,22,0.35); }
+.knob-outer.mode-threshold { border-color: rgba(59,130,246,0.35); }
+.knob-outer.dragging { transform: scale(1.07); }
+
+.knob-body {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #2a2a30, #18181c);
+  border: 1px solid var(--faint);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform .05s;
+}
+
+.knob-dot {
+  position: absolute;
+  top: 6px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 8px rgba(255,255,255,0.9);
+}
+
+.knob-mode-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-size: 0.55rem;
+  font-family: 'Space Mono', monospace;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background .15s;
+  letter-spacing: 0.05em;
+  z-index: 2;
+}
+.knob-mode-badge.gain { background: var(--orange); color: #000; }
+.knob-mode-badge.threshold { background: var(--blue); color: #fff; }
+
+.knob-label {
+  text-align: center;
+}
+.knob-label span:first-child {
+  display: block;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+}
+.knob-label span:last-child {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--text);
+}
+
+/* Connector lines SVG */
+.drum-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.08;
+}
+
+/* ─── Stem Mixer ─── */
+.sliders-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  height: 260px;
+}
+
+.slider-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.slider-track-wrap {
+  flex: 1;
+  width: 28px;
+  position: relative;
+}
+
+.slider-track {
+  width: 100%;
+  height: 100%;
+  background: var(--bg3);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  position: relative;
+}
+
+.slider-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  border-radius: 14px;
+  transition: height .08s;
+}
+
+.slider-handle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: #fff;
+  border-radius: 3px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  pointer-events: none;
+  transition: bottom .08s;
+}
+
+.slider-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 100%;
+  height: 100%;
+}
+
+.slider-label {
+  text-align: center;
+}
+.slider-label span:first-child {
+  display: block;
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+}
+.slider-label span:last-child {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text);
+}
+
+/* ─── Settings Modal ─── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(16px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s;
+}
+.modal-overlay.active { opacity: 1; pointer-events: all; }
+
+.modal {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 2rem;
+  width: 100%;
+  max-width: 480px;
+  transform: scale(0.94) translateY(16px);
+  transition: transform .25s cubic-bezier(.34,1.56,.64,1);
+  box-shadow: 0 40px 80px rgba(0,0,0,0.5);
+}
+.modal-overlay.active .modal { transform: scale(1) translateY(0); }
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+.modal-title { font-size: 1.2rem; font-weight: 700; }
+.modal-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: var(--bg3);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s, color .15s;
+}
+.modal-close:hover { background: var(--faint); color: var(--text); }
+
+.field-label {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+  margin-bottom: 6px;
+  font-family: 'Space Mono', monospace;
+}
+
+.field-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  font-family: 'Space Mono', monospace;
+  color: var(--text);
+  outline: none;
+  transition: border-color .15s;
+}
+.field-input:focus { border-color: var(--orange); }
+
+.info-box {
+  display: flex;
+  gap: 12px;
+  background: rgba(249,115,22,0.05);
+  border: 1px solid rgba(249,115,22,0.1);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin: 1rem 0 1.5rem;
+}
+.info-icon { flex-shrink: 0; color: var(--orange); margin-top: 1px; }
+.info-text { font-size: 0.75rem; line-height: 1.6; color: var(--muted); }
+.info-text em { color: var(--orange); font-style: normal; font-weight: 700; text-decoration: underline; }
+
+.btn-save {
+  width: 100%;
+  height: 46px;
+  border: none;
+  border-radius: 12px;
+  background: var(--text);
+  color: #000;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background .15s;
+}
+.btn-save:hover { background: var(--orange); }
+
+/* ─── Footer ─── */
+footer {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  border-top: 1px solid var(--bg3);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  position: relative;
+  z-index: 1;
+}
+
+.footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.25;
+}
+.footer-brand span {
+  font-size: 0.6rem;
+  font-family: 'Space Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+}
+
+.footer-links {
+  display: flex;
+  gap: 2rem;
+}
+.footer-links a {
+  font-size: 0.6rem;
+  font-family: 'Space Mono', monospace;
+  color: var(--muted);
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  transition: color .15s;
+}
+.footer-links a:hover { color: var(--text); }
+
+/* ─── Animations ─── */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.3); opacity: 1; }
+}
+
+@keyframes spin-activity {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.anim-spin { animation: spin-activity 2s linear infinite; }
+
+/* ─── Error Overlay ─── */
+.error-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(9,9,11,0.97);
+  backdrop-filter: blur(12px);
+  border-radius: 24px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .3s;
+}
+.error-overlay.active { opacity: 1; pointer-events: all; }
+
+.error-icon { color: #ef4444; }
+
+.error-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.4rem;
+  letter-spacing: 0.05em;
+  color: #ef4444;
+}
+
+.error-msg {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-align: center;
+  max-width: 420px;
+  line-height: 1.6;
+  padding: 0 2rem;
+  word-break: break-word;
+}
+
+.btn-retry {
+  margin-top: 8px;
+  background: transparent;
+  border: 1px solid var(--faint);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 20px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.btn-retry:hover { border-color: var(--orange); color: var(--orange); }
+
+</style>
+</head>
+<body>
+
+<!-- ─── Header ─── -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+    </div>
+    <div class="logo-text">
+      <h1>StemForge</h1>
+      <p>AI Signal Processor v4.0</p>
+    </div>
+  </div>
+  <div class="header-actions">
+    <button class="btn-icon" id="settingsBtn" title="Settings">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
+    <div class="divider-v"></div>
+    <label class="btn-upload">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Load Track
+      <input type="file" accept="audio/*" id="fileInput"/>
+    </label>
+  </div>
+</header>
+
+<!-- ─── Main ─── -->
+<main>
+
+  <!-- Waveform card -->
+  <div class="card" id="waveformCard">
+    <div class="waveform-controls">
+      <div class="transport">
+        <button class="btn-transport" id="skipBackBtn" title="Skip to start">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
+        </button>
+        <button class="btn-transport btn-play" id="playBtn" disabled>
+          <svg id="playIcon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <svg id="pauseIcon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+        </button>
+      </div>
+      <div class="meta-info">
+        <div class="meta-item">
+          <span class="meta-label">Sample Rate</span>
+          <span class="meta-value">44.1 kHz</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Bit Depth</span>
+          <span class="meta-value">24-bit PCM</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="waveform"></div>
+
+    <!-- Empty state -->
+    <div class="waveform-empty" id="emptyState">
+      <div class="empty-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="7" height="7"/><rect x="2" y="15" width="7" height="7"/><rect x="15" y="2" width="7" height="7"/><path d="M9 5.5h5M9 18.5h3M16 15v7M19 18.5h-7"/></svg>
+      </div>
+      <p class="empty-text">No track loaded. Upload an audio file to begin separation.</p>
+    </div>
+
+    <!-- Processing overlay -->
+    <div class="processing-overlay" id="processingOverlay">
+      <div class="processing-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="anim-spin">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+      </div>
+      <div class="proc-title">Processing Signal...</div>
+      <div class="proc-sub">Demucs v4 htdemucs_ft — isolating 7 stems</div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-pct" id="progressPct">0% COMPLETE</div>
+    </div>
+  
+    <!-- Error overlay -->
+    <div class="error-overlay" id="errorOverlay">
+      <div class="error-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </div>
+      <div class="error-title">Pipeline Failed</div>
+      <div class="error-msg" id="errorMsg"></div>
+      <button class="btn-retry" id="retryBtn">Try Another File</button>
+    </div>
+  </div>
+
+  <!-- Bottom grid -->
+  <div class="bottom-grid">
+
+    <!-- Drum Isolation -->
+    <div class="card">
+      <div class="card-title">
+        Drum Isolation
+        <span class="badge badge-blue">DRUMSEP_V2</span>
+      </div>
+
+      <div class="drum-stage">
+        <svg class="drum-lines" viewBox="0 0 400 280" preserveAspectRatio="none">
+          <path d="M200 80 L80 240 M200 80 L320 240 M80 240 L320 240" stroke="white" stroke-width="1" fill="none" stroke-dasharray="5 5"/>
+        </svg>
+
+        <!-- Kick -->
+        <div class="knob-wrap kick" data-drum="kick">
+          <div class="knob-outer mode-gain" id="knob-kick" data-drum="kick">
+            <span class="knob-mode-badge gain" id="badge-kick" data-drum="kick">gain</span>
+            <div class="knob-body" id="knob-body-kick">
+              <div class="knob-dot"></div>
+            </div>
+          </div>
+          <div class="knob-label">
+            <span>Kick</span>
+            <span id="knob-val-kick">50%</span>
+          </div>
+        </div>
+
+        <!-- Snare -->
+        <div class="knob-wrap snare" data-drum="snare">
+          <div class="knob-outer mode-gain" id="knob-snare" data-drum="snare">
+            <span class="knob-mode-badge gain" id="badge-snare" data-drum="snare">gain</span>
+            <div class="knob-body" id="knob-body-snare">
+              <div class="knob-dot"></div>
+            </div>
+          </div>
+          <div class="knob-label">
+            <span>Snare</span>
+            <span id="knob-val-snare">50%</span>
+          </div>
+        </div>
+
+        <!-- Hihat -->
+        <div class="knob-wrap hihat" data-drum="hihat">
+          <div class="knob-outer mode-gain" id="knob-hihat" data-drum="hihat">
+            <span class="knob-mode-badge gain" id="badge-hihat" data-drum="hihat">gain</span>
+            <div class="knob-body" id="knob-body-hihat">
+              <div class="knob-dot"></div>
+            </div>
+          </div>
+          <div class="knob-label">
+            <span>Hi-Hat</span>
+            <span id="knob-val-hihat">50%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stem Mixer -->
+    <div class="card">
+      <div class="card-title">
+        Stem Mixer
+        <span class="badge badge-green">Real-time Engine</span>
+      </div>
+
+      <div class="sliders-grid">
+        <div class="slider-col">
+          <div class="slider-track-wrap">
+            <div class="slider-track">
+              <div class="slider-fill" id="fill-vocals" style="height:80%;background:#a855f7;"></div>
+              <div class="slider-handle" id="handle-vocals" style="bottom:calc(80% - 3px);"></div>
+              <input type="range" class="slider-input" id="slider-vocals" min="0" max="100" value="80" orient="vertical"/>
+            </div>
+          </div>
+          <div class="slider-label"><span>Vocals</span><span id="val-vocals">80%</span></div>
+        </div>
+        <div class="slider-col">
+          <div class="slider-track-wrap">
+            <div class="slider-track">
+              <div class="slider-fill" id="fill-bass" style="height:70%;background:#3b82f6;"></div>
+              <div class="slider-handle" id="handle-bass" style="bottom:calc(70% - 3px);"></div>
+              <input type="range" class="slider-input" id="slider-bass" min="0" max="100" value="70" orient="vertical"/>
+            </div>
+          </div>
+          <div class="slider-label"><span>Bass</span><span id="val-bass">70%</span></div>
+        </div>
+        <div class="slider-col">
+          <div class="slider-track-wrap">
+            <div class="slider-track">
+              <div class="slider-fill" id="fill-other" style="height:60%;background:#71717a;"></div>
+              <div class="slider-handle" id="handle-other" style="bottom:calc(60% - 3px);"></div>
+              <input type="range" class="slider-input" id="slider-other" min="0" max="100" value="60" orient="vertical"/>
+            </div>
+          </div>
+          <div class="slider-label"><span>Other</span><span id="val-other">60%</span></div>
+        </div>
+        <div class="slider-col">
+          <div class="slider-track-wrap">
+            <div class="slider-track">
+              <div class="slider-fill" id="fill-main" style="height:90%;background:#f97316;"></div>
+              <div class="slider-handle" id="handle-main" style="bottom:calc(90% - 3px);"></div>
+              <input type="range" class="slider-input" id="slider-main" min="0" max="100" value="90" orient="vertical"/>
+            </div>
+          </div>
+          <div class="slider-label"><span>Main</span><span id="val-main">90%</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ─── Footer ─── -->
+<footer>
+  <div class="footer-brand">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    <span>StemForge Engine v4.0.1-stable</span>
+  </div>
+  <div class="footer-links">
+    <a href="#">Documentation</a>
+    <a href="#">API Reference</a>
+    <a href="#">Hugging Face</a>
+  </div>
+</footer>
+
+<!-- ─── Settings Modal ─── -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Backend Configuration</span>
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+    <label class="field-label">Hugging Face Space URL</label>
+    <input class="field-input" id="hfUrlInput" type="text" value="https://Ryanrealaf-stemforge.hf.space" placeholder="https://user-stemforge.hf.space"/>
+    <div class="info-box">
+      <div class="info-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </div>
+      <p class="info-text">
+        By default this app runs in <em>Simulation Mode</em> for demonstration. Deploy the provided <code>app.py</code> to a Hugging Face Space (ZeroGPU) to unlock full stem separation.
+      </p>
+    </div>
+    <button class="btn-save" id="saveSettings">SAVE CONFIGURATION</button>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────
+const state = {
+  hfUrl: 'https://Ryanrealaf-stemforge.hf.space',
+  isPlaying: false,
+  isLoaded: false,
+  isProcessing: false,
+  currentJobId: null,
+  stemUrls: {},       // { vocals, bass, other, drums } → blob URLs
+  audioCtx: null,
+  gainNodes: {},      // per-stem GainNode
+  sourceNodes: {},    // per-stem AudioBufferSourceNode (for synchronized play)
+  audioBuffers: {},   // decoded AudioBuffer per stem
+  startTime: 0,
+  pauseOffset: 0,
+  drums: {
+    kick:  { gain: 50, threshold: -12, mode: 'gain' },
+    snare: { gain: 50, threshold: -12, mode: 'gain' },
+    hihat: { gain: 50, threshold: -12, mode: 'gain' },
+  },
+  stems: { vocals: 80, bass: 70, other: 60, main: 90 }
+};
+
+// Stem → slider key mapping (backend returns: vocals, bass, other, drums)
+const STEM_SLIDER_MAP = {
+  vocals: 'vocals',
+  bass:   'bass',
+  other:  'other',
+  drums:  'main'   // "main" slider controls drum stem
+};
+
+// ── Web Audio Setup ────────────────────────────────────────────────
+function getAudioCtx() {
+  if (!state.audioCtx) {
+    state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return state.audioCtx;
+}
+
+async function loadStemBuffers(stemUrls) {
+  const ctx = getAudioCtx();
+  state.gainNodes = {};
+  state.audioBuffers = {};
+
+  // Create master gain chain: stemGain → ctx.destination
+  await Promise.all(Object.entries(stemUrls).map(async ([stem, url]) => {
+    const res = await fetch(url);
+    const arrayBuf = await res.arrayBuffer();
+    const decoded = await ctx.decodeAudioData(arrayBuf);
+    state.audioBuffers[stem] = decoded;
+
+    const gain = ctx.createGain();
+    const sliderKey = STEM_SLIDER_MAP[stem] || 'main';
+    gain.gain.value = (state.stems[sliderKey] || 80) / 100;
+    gain.connect(ctx.destination);
+    state.gainNodes[stem] = gain;
+  }));
+}
+
+function startAllStems(offset = 0) {
+  const ctx = getAudioCtx();
+  // Stop any running sources
+  stopAllStems();
+
+  state.sourceNodes = {};
+  const startAt = ctx.currentTime + 0.01;
+
+  Object.entries(state.audioBuffers).forEach(([stem, buffer]) => {
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.connect(state.gainNodes[stem]);
+    src.start(startAt, offset);
+    state.sourceNodes[stem] = src;
+  });
+
+  // Only the vocals stem drives WaveSurfer visually — already loaded
+  state.startTime = ctx.currentTime - offset;
+
+  // Wire finish to first stem ending
+  const firstSrc = Object.values(state.sourceNodes)[0];
+  if (firstSrc) {
+    firstSrc.onended = () => {
+      if (state.isPlaying) setPlaying(false);
+    };
+  }
+}
+
+function stopAllStems() {
+  Object.values(state.sourceNodes).forEach(src => {
+    try { src.stop(); } catch {}
+  });
+  state.sourceNodes = {};
+}
+
+function getCurrentOffset() {
+  if (!state.audioCtx || !state.isPlaying) return state.pauseOffset;
+  return state.audioCtx.currentTime - state.startTime;
+}
+
+// ── WaveSurfer (visual only after stems load) ──────────────────────
+let ws = null;
+
+function initWaveSurfer() {
+  ws = WaveSurfer.create({
+    container: '#waveform',
+    waveColor: '#3f3f46',
+    progressColor: '#f97316',
+    cursorColor: '#f97316',
+    barWidth: 2,
+    barRadius: 3,
+    height: 120,
+    normalize: true,
+    // Mute WaveSurfer's own audio — Web Audio handles playback
+    backend: 'WebAudio',
+    interact: true,
+  });
+
+  // Mute internal WaveSurfer audio output
+  ws.on('ready', () => {
+    try { ws.setVolume(0); } catch {}
+  });
+
+  ws.on('seek', (progress) => {
+    if (state.isLoaded && Object.keys(state.audioBuffers).length > 0) {
+      const dur = Object.values(state.audioBuffers)[0]?.duration || 0;
+      state.pauseOffset = progress * dur;
+      if (state.isPlaying) {
+        startAllStems(state.pauseOffset);
+        state.startTime = state.audioCtx.currentTime - state.pauseOffset;
+      }
+    }
+  });
+}
+
+function setPlaying(val) {
+  state.isPlaying = val;
+  document.getElementById('playIcon').style.display = val ? 'none' : 'block';
+  document.getElementById('pauseIcon').style.display = val ? 'block' : 'none';
+}
+
+// ── File Upload & Pipeline ─────────────────────────────────────────
+document.getElementById('fileInput').addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  showProcessing(true);
+  hideEmpty(false);
+  state.isLoaded = false;
+  state.currentJobId = null;
+  state.stemUrls = {};
+  stopAllStems();
+
+  const url = state.hfUrl;
+
+  try {
+    // 1. Upload
+    const fd = new FormData();
+    fd.append('file', file);
+    const uploadRes = await fetch(`${url}/upload`, { method: 'POST', body: fd });
+    if (!uploadRes.ok) throw new Error(`Upload HTTP ${uploadRes.status}`);
+    const uploadData = await uploadRes.json();
+    const job_id = uploadData.job_id || uploadData;
+    if (!job_id) throw new Error('No job_id in upload response');
+    state.currentJobId = job_id;
+    setProgress(5);
+
+    // 2. Poll status — files embedded in completion response
+    await new Promise((resolve, reject) => {
+      const poll = setInterval(async () => {
+        try {
+          const statusRes = await fetch(`${url}/status/${job_id}`);
+          if (!statusRes.ok) return;
+          const raw = await statusRes.json();
+          const status = raw.status;
+
+          if (status === 'complete') {
+            clearInterval(poll);
+            setProgress(90);
+
+            // Stem URLs come back inline in the status response
+            const files = raw.files || {};
+            ['vocals', 'bass', 'drums', 'other'].forEach(stem => {
+              const p = files[stem];
+              if (p) state.stemUrls[stem] = p.startsWith('http') ? p : `${url}${p}`;
+            });
+
+            if (Object.keys(state.stemUrls).length === 0) {
+              reject(new Error('Status complete but no file URLs returned'));
+            } else {
+              resolve();
+            }
+          } else if (status === 'error') {
+            clearInterval(poll);
+            reject(new Error(raw.error || 'Separation failed on backend'));
+          } else {
+            const cur = parseFloat(document.getElementById('progressFill').style.width) || 5;
+            setProgress(Math.min(85, cur + 0.5));
+          }
+        } catch { /* network blip — keep polling */ }
+      }, 3000);
+    });
+
+    setProgress(95);
+
+    // 4. Decode all stem audio buffers
+    await loadStemBuffers(state.stemUrls);
+
+    // 5. Load vocals (or first available stem) into WaveSurfer for visual
+    const visualStem = state.stemUrls.vocals || Object.values(state.stemUrls)[0];
+    if (ws) ws.load(visualStem);
+
+    setProgress(100);
+    finishLoad();
+
+  } catch (err) {
+    console.error('[StemForge]', err);
+    showProcessing(false);
+    showHardError(err.message);
+  }
+});
+
+function setProgress(p) {
+  document.getElementById('progressFill').style.width = p + '%';
+  document.getElementById('progressPct').textContent = Math.round(p) + '% COMPLETE';
+}
+
+function finishLoad() {
+  showProcessing(false);
+  state.isLoaded = true;
+  state.pauseOffset = 0;
+  document.getElementById('playBtn').disabled = false;
+  hideEmpty(true);
+}
+
+function showProcessing(v) {
+  state.isProcessing = v;
+  document.getElementById('processingOverlay').classList.toggle('active', v);
+  if (v) setProgress(0);
+}
+
+function showHardError(msg) {
+  // Show error state in the waveform card
+  const overlay = document.getElementById('errorOverlay');
+  const msgEl = document.getElementById('errorMsg');
+  if (overlay) overlay.classList.add('active');
+  if (msgEl) msgEl.textContent = msg;
+  hideEmpty(true);
+}
+
+function clearError() {
+  const overlay = document.getElementById('errorOverlay');
+  if (overlay) overlay.classList.remove('active');
+}
+
+function hideEmpty(v) {
+  document.getElementById('emptyState').classList.toggle('hidden', v);
+}
+
+// ── Retry Button ──────────────────────────────────────────────────
+document.getElementById('retryBtn').addEventListener('click', () => {
+  clearError();
+  hideEmpty(false);
+  document.getElementById('fileInput').value = '';
+});
+
+// ── Transport ──────────────────────────────────────────────────────
+document.getElementById('playBtn').addEventListener('click', async () => {
+  if (!state.isLoaded) return;
+
+  const hasStemAudio = Object.keys(state.audioBuffers).length > 0;
+
+  if (hasStemAudio) {
+    const ctx = getAudioCtx();
+    if (ctx.state === 'suspended') await ctx.resume();
+
+    if (state.isPlaying) {
+      // Pause
+      state.pauseOffset = getCurrentOffset();
+      stopAllStems();
+      if (ws) ws.pause();
+      setPlaying(false);
+    } else {
+      // Play from current offset
+      startAllStems(state.pauseOffset);
+      if (ws) ws.play();
+      setPlaying(true);
+    }
+  } else {
+    // Fallback: WaveSurfer-only mode (no stems)
+    if (ws) ws.playPause();
+    setPlaying(!state.isPlaying);
+  }
+});
+
+document.getElementById('skipBackBtn').addEventListener('click', () => {
+  state.pauseOffset = 0;
+  if (state.isPlaying) {
+    stopAllStems();
+    startAllStems(0);
+  }
+  if (ws) ws.seekTo(0);
+});
+
+// ── Vertical Sliders → GainNodes ───────────────────────────────────
+['vocals', 'bass', 'other', 'main'].forEach(sliderKey => {
+  const input = document.getElementById(`slider-${sliderKey}`);
+  input.addEventListener('input', () => {
+    const v = parseInt(input.value);
+    state.stems[sliderKey] = v;
+    document.getElementById(`fill-${sliderKey}`).style.height = v + '%';
+    document.getElementById(`handle-${sliderKey}`).style.bottom = `calc(${v}% - 3px)`;
+    document.getElementById(`val-${sliderKey}`).textContent = v + '%';
+
+    // Update corresponding GainNode in real time
+    const gainVal = v / 100;
+    // Map slider → stem name
+    const stemForSlider = Object.entries(STEM_SLIDER_MAP).find(([, sk]) => sk === sliderKey)?.[0];
+    if (stemForSlider && state.gainNodes[stemForSlider]) {
+      state.gainNodes[stemForSlider].gain.setTargetAtTime(gainVal, state.audioCtx.currentTime, 0.01);
+    }
+  });
+});
+
+// ── Knobs ──────────────────────────────────────────────────────────
+const DRUM_NAMES = ['kick', 'snare', 'hihat'];
+
+function getKnobValue(drum) {
+  const d = state.drums[drum];
+  return d.mode === 'gain' ? d.gain : d.threshold;
+}
+
+function getKnobRange(drum) {
+  const d = state.drums[drum];
+  if (d.mode === 'gain') return { min: 0, max: 100 };
+  return { min: -60, max: 0 };
+}
+
+function getKnobUnit(drum) {
+  return state.drums[drum].mode === 'gain' ? '%' : 'dB';
+}
+
+function updateKnobUI(drum) {
+  const d = state.drums[drum];
+  const val = getKnobValue(drum);
+  const { min, max } = getKnobRange(drum);
+  const norm = (val - min) / (max - min);
+  const rotation = norm * 270 - 135;
+
+  document.getElementById(`knob-body-${drum}`).style.transform = `rotate(${rotation}deg)`;
+  document.getElementById(`knob-val-${drum}`).textContent = val + getKnobUnit(drum);
+
+  const outer = document.getElementById(`knob-${drum}`);
+  outer.className = `knob-outer mode-${d.mode}`;
+
+  const badge = document.getElementById(`badge-${drum}`);
+  badge.textContent = d.mode;
+  badge.className = `knob-mode-badge ${d.mode}`;
+}
+
+DRUM_NAMES.forEach(drum => updateKnobUI(drum));
+
+DRUM_NAMES.forEach(drum => {
+  const el = document.getElementById(`knob-${drum}`);
+  let startY, startVal, dragging = false;
+
+  el.addEventListener('mousedown', (e) => {
+    dragging = true;
+    startY = e.clientY;
+    startVal = getKnobValue(drum);
+    el.classList.add('dragging');
+    e.preventDefault();
+
+    const onMove = (ev) => {
+      if (!dragging) return;
+      const { min, max } = getKnobRange(drum);
+      const range = max - min;
+      const delta = (startY - ev.clientY) * 0.5 * (range / 100);
+      const newVal = Math.min(max, Math.max(min, startVal + delta));
+      const rounded = Math.round(newVal);
+      const d = state.drums[drum];
+      if (d.mode === 'gain') d.gain = rounded;
+      else d.threshold = rounded;
+      updateKnobUI(drum);
+    };
+
+    const onUp = () => {
+      dragging = false;
+      el.classList.remove('dragging');
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+
+  el.addEventListener('touchstart', (e) => {
+    startY = e.touches[0].clientY;
+    startVal = getKnobValue(drum);
+    el.classList.add('dragging');
+  }, { passive: true });
+
+  el.addEventListener('touchmove', (e) => {
+    const { min, max } = getKnobRange(drum);
+    const range = max - min;
+    const delta = (startY - e.touches[0].clientY) * 0.5 * (range / 100);
+    const newVal = Math.min(max, Math.max(min, startVal + delta));
+    const rounded = Math.round(newVal);
+    const d = state.drums[drum];
+    if (d.mode === 'gain') d.gain = rounded;
+    else d.threshold = rounded;
+    updateKnobUI(drum);
+  }, { passive: true });
+
+  el.addEventListener('touchend', () => el.classList.remove('dragging'));
+});
+
+// ── Settings Modal ─────────────────────────────────────────────────
+document.getElementById('settingsBtn').addEventListener('click', () => {
+  document.getElementById('settingsModal').classList.add('active');
+});
+document.getElementById('modalClose').addEventListener('click', () => {
+  document.getElementById('settingsModal').classList.remove('active');
+});
+document.getElementById('saveSettings').addEventListener('click', () => {
+  state.hfUrl = document.getElementById('hfUrlInput').value.trim();
+  document.getElementById('settingsModal').classList.remove('active');
+});
+document.getElementById('settingsModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('active');
+});
+
+// ── Init ───────────────────────────────────────────────────────────
+initWaveSurfer();
+</script>
+</body>
 </html>
