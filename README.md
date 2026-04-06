@@ -2,66 +2,52 @@
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
-# Run and deploy your AI Studio app
+# StemForge: AI-Powered Stem Separation
 
-This contains everything you need to run your app locally.
+This repository contains the frontend and backend for StemForge, a web application that uses AI to separate audio files into their constituent stems (vocals, bass, drums, other).
 
 View your app in AI Studio: https://ai.studio/apps/40cab3ac-58b7-466e-a068-8284406d69a7
 
-## Run Locally
+## Architecture
 
-**Prerequisites:**  Node.js
+*   **Frontend**: A static `index.html` file with vanilla JavaScript that provides the user interface.
+*   **Backend**: A Python server using `FastAPI` (`app.py`) that handles audio processing with the `demucs` library.
 
+## Running the Backend on Hugging Face
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+This application is designed to be deployed as a Hugging Face Space using a ZeroGPU.
 
-## Project Status & Troubleshooting Summary (For Handoff)
+### Dependencies
 
-This section provides a detailed breakdown of the project'''s architecture and the troubleshooting steps taken to get it to a working state. It is intended to brief any developer or AI assistant taking over the project.
+Your `requirements.txt` file on Hugging Face must include the following:
 
-### Project Overview
-- **Application:** StemForge
-- **Goal:** A web application that separates an audio file into its constituent stems (vocals, bass, drums, other) using AI.
+```
+fastapi
+uvicorn
+python-multipart
+demucs
+# CRITICAL: Add the following lines for torch audio backend
+torch --extra-index-url https://download.pytorch.org/whl/cpu
+torchaudio --extra-index-url https://download.pytorch.org/whl/cpu
+```
 
-### Technical Architecture
-The project is comprised of two main parts:
+Adding `torch` and `torchaudio` is essential for the `demucs` library to function correctly on Hugging Face Spaces.
 
-1.  **Frontend (in `/src`)**: A **React + Vite** application written in TypeScript.
-    - It provides the user interface for file uploads.
-    - It communicates with the backend via API calls.
-    - After an upload, it polls a `/status` endpoint until the processing is complete.
-    - It uses `wavesurfer.js` to display the final separated audio tracks.
+### Deployment
 
-2.  **Backend (root folder: `app.py`, `requirements.txt`)**: A **Python + FastAPI** server application designed to be deployed on a platform like Hugging Face Spaces.
-    - **`app.py`**: Defines two main API endpoints:
-        - `POST /upload`: Receives the audio file, starts the separation process in the background, and returns a `job_id`.
-        - `GET /status/{job_id}`: Allows the frontend to check the status of the separation job.
-    - **`demucs`**: The core AI model (a Python library) that performs the audio separation.
-    - **`requirements.txt`**: Defines the necessary Python dependencies for the Hugging Face environment.
+1.  Create a new Hugging Face Space.
+2.  Select "ZeroGPU" as the hardware.
+3.  Upload your `app.py` and `requirements.txt` files.
+4.  The Space will build and deploy the application. Your backend will be live at the URL of your Space (e.g., `https://YourUser-YourSpace.hf.space`).
 
-### Troubleshooting History
+## Connecting the Frontend
 
-The project went through several key troubleshooting phases:
+The `index.html` file connects to the Hugging Face backend. Make sure the `hfUrl` in the `<script>` section of `index.html` is set to the correct URL of your running Hugging Face Space.
 
-1.  **Initial Problem: Processing Stuck at 99%**
-    - **Symptom:** The frontend progress bar would reach 99% and never complete.
-    - **Root Cause:** A **deadlock** in the `app.py` backend. The original code attempted to read the progress percentage from the `demucs` process in real-time. This method was unreliable and caused both the main script and the `demucs` process to wait for each other indefinitely.
-    - **Solution:** The `run_demucs` function in `app.py` was rewritten to use `await process.communicate()`. This is a more robust method that simply waits for the `demucs` subprocess to finish completely, resolving the deadlock.
-
-2.  **Second Problem: Hugging Face Build Failures**
-    - **Symptom:** After fixing the deadlock, deploying the application to Hugging Face resulted in a build error.
-    - **Root Cause:** The `demucs` library depends on `torch`, but the installer was trying to fetch a GPU version. The Hugging Face server is CPU-only, causing a compatibility failure.
-    - **Solution:** The `requirements.txt` file was modified to point to the CPU-specific repository for `torch` and to install `torch` and `torchaudio` explicitly.
-
-3.  **Third Problem: Missing `torchcodec` Dependency**
-    - **Symptom:** After fixing the build error, the app would fail during processing with an `ImportError: TorchCodec is required...` message shown on the frontend.
-    - **Root Cause:** A sub-component of `demucs` requires the `torchcodec` package to save the final audio files. This package was not included in our list of dependencies.
-    - **Solution:** The `torchcodec` package was added to the `requirements.txt` file.
-
-### Current Status
-
-The codebase has been updated to fix the runtime `ImportError` related to the missing `torchcodec` package. The `requirements.txt` file now includes this dependency. The user is in the process of deploying this latest version to their Hugging Face Space. This is believed to be the final dependency required to make the application fully functional.
+```javascript
+// In index.html
+const state = {
+  hfUrl: 'https://Ryanrealaf-stemforge.hf.space', // <-- Make sure this is your HF Space URL
+  // ...
+};
+```
