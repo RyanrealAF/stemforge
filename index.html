@@ -1389,6 +1389,15 @@ function updateKnobUI(drum) {
 DRUM_NAMES.forEach(drum => updateKnobUI(drum));
 
 DRUM_NAMES.forEach(drum => {
+  document.getElementById(`badge-${drum}`).addEventListener('click', (e) => {
+    e.stopPropagation();
+    const d = state.drums[drum];
+    d.mode = d.mode === 'gain' ? 'threshold' : 'gain';
+    updateKnobUI(drum);
+  });
+});
+
+DRUM_NAMES.forEach(drum => {
   const el = document.getElementById(`knob-${drum}`);
   let startY, startVal, dragging = false;
 
@@ -1419,7 +1428,7 @@ DRUM_NAMES.forEach(drum => {
       document.removeEventListener('mouseup', onUp);
     };
 
-    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mousemove', on.Move);
     document.addEventListener('mouseup', onUp);
   });
 
