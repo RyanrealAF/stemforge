@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RhythmForge</title>
+  </head>
+  <body>
+    <main>
+      <button id="analyze-btn">Analyze</button>
+      <pre id="results"></pre>
+    </main>
+
+    <script>
+      function renderResults(data) {
+        document.getElementById('results').textContent = JSON.stringify(data, null, 2);
+      }
+
+      // Receive pre-analyzed data pushed from StemForge
+      window.addEventListener('message', (e) => {
+        if (e.data?.type === 'RHYTHMFORGE_RESULT') {
+          renderResults(e.data.data);
+          document.getElementById('analyze-btn').textContent = 'Re-analyze';
+        }
+      });
+    </script>
+  </body>
+</html>
