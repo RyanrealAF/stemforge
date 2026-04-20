@@ -17,6 +17,11 @@ interface StemState {
   main: number;
 }
 
+interface StemUrls {
+  vocals?: string;
+  drums?: string;
+}
+
 export const StemForge: React.FC = () => {
   const waveformRef = useRef<HTMLDivElement>(null);
   const wavesurfer = useRef<WaveSurfer | null>(null);
@@ -26,6 +31,8 @@ export const StemForge: React.FC = () => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hfUrl, setHfUrl] = useState('https://Ryanrealaf-stemforge.hf.space');
   const [showSettings, setShowSettings] = useState(false);
+  const [stemUrls, setStemUrls] = useState<StemUrls>({});
+  const [isSendingToRhythmForge, setIsSendingToRhythmForge] = useState(false);
 
   const [stems, setStems] = useState<StemState>({
     vocals: 80,
@@ -93,6 +100,7 @@ export const StemForge: React.FC = () => {
               clearInterval(pollInterval);
               setIsProcessing(false);
               setIsLoaded(true);
+              setStemUrls(statusData.stems ?? {});
               wavesurfer.current?.load(URL.createObjectURL(file));
               // In a real app, we would load the stems here
             } else if (statusData.status === 'error') {
@@ -147,6 +155,46 @@ export const StemForge: React.FC = () => {
       ...prev,
       [drum]: { ...prev[drum], mode: prev[drum].mode === 'gain' ? 'threshold' : 'gain' }
     }));
+  };
+
+  const sendToRhythmForge = async () => {
+    if (!stemUrls.vocals || !stemUrls.drums) return;
+
+    const RHYTHMFORGE_URL = 'https://Ryanrealaf-rhythmforge.hf.space';
+    setIsSendingToRhythmForge(true);
+
+    try {
+      const [vocalBlob, drumBlob] = await Promise.all([
+        fetch(stemUrls.vocals).then((r) => r.blob()),
+        fetch(stemUrls.drums).then((r) => r.blob())
+      ]);
+
+      const fd = new FormData();
+      fd.append('vocal_file', vocalBlob, 'vocals.wav');
+      fd.append('drum_file', drumBlob, 'drums.wav');
+
+      const res = await fetch(`${RHYTHMFORGE_URL}/analyze/full`, {
+        method: 'POST',
+        body: fd
+      });
+
+      if (!res.ok) throw new Error(`RhythmForge HTTP ${res.status}`);
+
+      const data = await res.json();
+      const tab = window.open(RHYTHMFORGE_URL, '_blank');
+      const push = setInterval(() => {
+        try {
+          tab?.postMessage({ type: 'RHYTHMFORGE_RESULT', data }, RHYTHMFORGE_URL);
+        } catch {
+          // no-op
+        }
+      }, 800);
+      setTimeout(() => clearInterval(push), 12000);
+    } catch (err) {
+      alert('RhythmForge handoff failed: ' + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setIsSendingToRhythmForge(false);
+    }
   };
 
   return (
@@ -353,6 +401,32 @@ export const StemForge: React.FC = () => {
               />
             </div>
           </section>
+        </div>
+
+        {/* RhythmForge handoff bar */}
+        <div
+          className={cn(
+            'mt-8 p-5 rounded-2xl border items-center justify-between gap-4 flex-wrap',
+            stemUrls.vocals && stemUrls.drums
+              ? 'flex bg-violet-500/5 border-violet-500/20'
+              : 'hidden'
+          )}
+        >
+          <div className="flex flex-col gap-[3px]">
+            <span className="font-mono text-[0.6rem] uppercase tracking-[0.18em] text-violet-500">RhythmForge</span>
+            <span className="text-xs text-zinc-500">Vocal + drum stems ready — send directly for analysis</span>
+          </div>
+          <button
+            className={cn(
+              'flex items-center gap-2 bg-violet-500 text-white border-none rounded-[10px] px-5 h-10 font-bold text-xs tracking-[0.08em] uppercase whitespace-nowrap transition-all',
+              isSendingToRhythmForge ? 'opacity-80 cursor-not-allowed' : 'hover:bg-violet-600 active:scale-95'
+            )}
+            disabled={isSendingToRhythmForge}
+            onClick={sendToRhythmForge}
+          >
+            <span className={isSendingToRhythmForge ? 'opacity-60' : ''}>Analyze in RhythmForge</span>
+            {isSendingToRhythmForge && <div className="w-[14px] h-[14px] rounded-full border-2 border-white/30 border-t-white animate-spin" />}
+          </button>
         </div>
       </main>
 
