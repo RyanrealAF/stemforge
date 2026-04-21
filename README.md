@@ -10,12 +10,12 @@ View your app in AI Studio: https://ai.studio/apps/40cab3ac-58b7-466e-a068-82844
 
 ## Architecture
 
-*   **Frontend**: A static `index.html` file with vanilla JavaScript that provides the user interface.
-*   **Backend**: A Python server using `FastAPI` (`app.py`) that handles audio processing with the `demucs` library.
+*   **Frontend**: A static web application located in the `/public` directory. This is designed to be deployed to a static hosting service like Cloudflare Pages.
+*   **Backend**: A Python server using `FastAPI` (`app.py`) that handles audio processing with the `demucs` library. This is designed to be deployed to a GPU-powered service like a Hugging Face Space.
 
-## Running the Backend on Hugging Face
+## Backend Deployment (Hugging Face)
 
-This application is designed to be deployed as a Hugging Face Space using a ZeroGPU.
+This application's backend is designed to be deployed as a Hugging Face Space, preferably using a ZeroGPU instance for performance.
 
 ### Dependencies
 
@@ -33,21 +33,41 @@ torchaudio --extra-index-url https://download.pytorch.org/whl/cpu
 
 Adding `torch` and `torchaudio` is essential for the `demucs` library to function correctly on Hugging Face Spaces.
 
-### Deployment
+### Steps
 
 1.  Create a new Hugging Face Space.
 2.  Select "ZeroGPU" as the hardware.
-3.  Upload your `app.py` and `requirements.txt` files.
+3.  Upload your `app.py` and `requirements.txt` files to the root of the Space.
 4.  The Space will build and deploy the application. Your backend will be live at the URL of your Space (e.g., `https://YourUser-YourSpace.hf.space`).
 
-## Connecting the Frontend
+## Frontend Deployment (Cloudflare Pages)
 
-The `index.html` file connects to the Hugging Face backend. Make sure the `hfUrl` in the `<script>` section of `index.html` is set to the correct URL of your running Hugging Face Space.
+The frontend is a static site contained in the `/public` directory.
+
+### Steps
+
+1.  Log in to your Cloudflare dashboard.
+2.  Navigate to **Workers & Pages**.
+3.  Click **Create application** > **Pages** > **Connect to Git**.
+4.  Select this GitHub repository.
+5.  In the "Set up builds and deployments" section:
+    *   **Build command**: Leave this blank.
+    *   **Build output directory**: Set this to `public`.
+6.  Click **Save and Deploy**.
+
+## Connecting the Frontend to the Backend
+
+Once both are deployed, you must connect them.
+
+1.  In your `public/index.html` file, find the `state` object in the `<script>` tag.
+2.  Update the `hfUrl` property to point to your live Hugging Face Space URL.
 
 ```javascript
-// In index.html
+// In public/index.html
 const state = {
-  hfUrl: 'https://Ryanrealaf-stemforge.hf.space', // <-- Make sure this is your HF Space URL
+  hfUrl: 'https://YourUser-YourSpace.hf.space', // <-- Make sure this is your HF Space URL
   // ...
 };
 ```
+
+3.  Commit and push this change to your GitHub repository. Cloudflare Pages will automatically redeploy your frontend with the updated backend URL.
