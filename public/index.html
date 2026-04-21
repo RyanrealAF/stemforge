@@ -55,7 +55,7 @@ body::after {
   content: '';
   position: fixed; inset: 0; pointer-events: none; z-index: 9999;
   opacity: .018;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E');
 }
 
 /* ── Header ── */
@@ -577,11 +577,11 @@ footer {
       <div class="wf-meta">
         <div class="meta-pair">
           <span class="meta-k">File</span>
-          <span class="meta-v" id="metaFile">—</span>
+          <span class="meta-v" id="metaFile"></span>
         </div>
         <div class="meta-pair">
           <span class="meta-k">Duration</span>
-          <span class="meta-v" id="metaDur">—</span>
+          <span class="meta-v" id="metaDur"></span>
         </div>
         <div class="meta-pair">
           <span class="meta-k">Sample Rate</span>
@@ -637,15 +637,15 @@ footer {
       <div class="stem-body">
         <div class="stem-metric">
           <div class="sm-key">Signal type</div>
-          <div class="sm-val placeholder" id="sm-vocals-type">—</div>
+          <div class="sm-val placeholder" id="sm-vocals-type"></div>
         </div>
         <div class="stem-metric">
           <div class="sm-key">Freq center</div>
-          <div class="sm-val placeholder" id="sm-vocals-freq">—</div>
+          <div class="sm-val placeholder" id="sm-vocals-freq"></div>
         </div>
         <div class="stem-metric">
           <div class="sm-key">Isolation quality</div>
-          <div class="sm-val placeholder" id="sm-vocals-iso">—</div>
+          <div class="sm-val placeholder" id="sm-vocals-iso"></div>
         </div>
         <div class="stem-fader">
           <span class="fader-label">Vol</span>
@@ -669,15 +669,15 @@ footer {
       <div class="stem-body">
         <div class="stem-metric">
           <div class="sm-key">Signal type</div>
-          <div class="sm-val placeholder" id="sm-bass-type">—</div>
+          <div class="sm-val placeholder" id="sm-bass-type"></div>
         </div>
         <div class="stem-metric">
           <div class="sm-key">Freq center</div>
-          <div class="sm-val placeholder" id="sm-bass-freq">—</div>
+          <div class="sm-val placeholder" id="sm-bass-freq"></div>
         </div>
         <div class="stem-metric">
           <div class="sm-key">Isolation quality</div>
-          <div class="sm-val placeholder" id="sm-bass-iso">—</div>
+          <div class="sm-val placeholder" id="sm-bass-iso"></div>
         </div>
         <div class="stem-fader">
           <span class="fader-label">Vol</span>
@@ -701,15 +701,15 @@ footer {
       <div class="stem-body">
         <div class="stem-metric">
           <div class="sm-key">Signal type</div>
-          <div class="sm-val placeholder" id="sm-drums-type">—</div>
+          <div class="sm-val placeholder" id="sm-drums-type"></div>
         </div>
         <div class="stem-metric">
           <div class="sm-key">BPM estimate</div>
-          <div class="sm-val placeholder" id="sm-drums-bpm">—</div>
+          <div class="sm-val placeholder" id="sm-drums-bpm"></div>
         </div>
         <div class="stem-metric">
           <div class="sm-key">Isolation quality</div>
-          <div class="sm-val placeholder" id="sm-drums-iso">—</div>
+          <div class="sm-val placeholder" id="sm-drums-iso"></div>
         </div>
         <div class="stem-fader">
           <span class="fader-label">Vol</span>
@@ -733,15 +733,15 @@ footer {
       <div class="stem-body">
         <div class="stem-metric">
           <div class="sm-key">Signal type</div>
-          <div class="sm-val placeholder" id="sm-other-type">—</div>
+          <div class="sm-val placeholder" id="sm-other-type"></div>
         </div>
         <div class="stem-metric">
           <div class="sm-key">Freq center</div>
-          <div class="sm-val placeholder" id="sm-other-freq">—</div>
+          <div class="sm-val placeholder" id="sm-other-freq"></div>
         </div>
         <div class="stem-metric">
           <div class="sm-key">Isolation quality</div>
-          <div class="sm-val placeholder" id="sm-other-iso">—</div>
+          <div class="sm-val placeholder" id="sm-other-iso"></div>
         </div>
         <div class="stem-fader">
           <span class="fader-label">Vol</span>
@@ -760,7 +760,7 @@ footer {
   <div class="analysis-section" id="analysisSection">
     <div class="analysis-header">
       <div class="analysis-title">Signal Analysis</div>
-      <span style="font-family:var(--mono);font-size:10px;color:var(--muted)" id="analysisTrack">—</span>
+      <span style="font-family:var(--mono);font-size:10px;color:var(--muted)" id="analysisTrack"></span>
     </div>
     <div class="signal-grid">
 
@@ -768,19 +768,19 @@ footer {
         <div class="sig-label">Separation quality</div>
         <div class="sig-row">
           <span class="sig-k">Vocals</span>
-          <span class="sig-v orange" id="sq-vocals">—</span>
+          <span class="sig-v orange" id="sq-vocals"></span>
         </div>
         <div class="sig-row">
           <span class="sig-k">Bass</span>
-          <span class="sig-v blue" id="sq-bass">—</span>
+          <span class="sig-v blue" id="sq-bass"></span>
         </div>
         <div class="sig-row">
           <span class="sig-k">Drums</span>
-          <span class="sig-v orange" id="sq-drums">—</span>
+          <span class="sig-v orange" id="sq-drums"></span>
         </div>
         <div class="sig-row">
           <span class="sig-k">Other</span>
-          <span class="sig-v muted" id="sq-other">—</span>
+          <span class="sig-v muted" id="sq-other"></span>
         </div>
       </div>
 
@@ -788,19 +788,19 @@ footer {
         <div class="sig-label">Spectral profile</div>
         <div class="sig-row">
           <span class="sig-k">Dominant freq</span>
-          <span class="sig-v" id="sp-dom">—</span>
+          <span class="sig-v" id="sp-dom"></span>
         </div>
         <div class="sig-row">
           <span class="sig-k">Low end energy</span>
-          <span class="sig-v" id="sp-low">—</span>
+          <span class="sig-v" id="sp-low"></span>
         </div>
         <div class="sig-row">
           <span class="sig-k">Mid energy</span>
-          <span class="sig-v" id="sp-mid">—</span>
+          <span class="sig-v" id="sp-mid"></span>
         </div>
         <div class="sig-row">
           <span class="sig-k">High energy</span>
-          <span class="sig-v" id="sp-high">—</span>
+          <span class="sig-v" id="sp-high"></span>
         </div>
       </div>
 
@@ -808,19 +808,19 @@ footer {
         <div class="sig-label">Rhythm profile</div>
         <div class="sig-row">
           <span class="sig-k">BPM</span>
-          <span class="sig-v orange" id="rp-bpm">—</span>
+          <span class="sig-v orange" id="rp-bpm"></span>
         </div>
         <div class="sig-row">
           <span class="sig-k">Time signature</span>
-          <span class="sig-v" id="rp-ts">—</span>
+          <span class="sig-v" id="rp-ts"></span>
         </div>
         <div class="sig-row">
           <span class="sig-k">Groove</span>
-          <span class="sig-v" id="rp-groove">—</span>
+          <span class="sig-v" id="rp-groove"></span>
         </div>
         <div class="sig-row">
           <span class="sig-k">DrumForge ready</span>
-          <span class="sig-v" id="rp-df">—</span>
+          <span class="sig-v" id="rp-df"></span>
         </div>
       </div>
 
@@ -868,10 +868,6 @@ footer {
     </div>
     <label class="field-k">StemForge Space URL</label>
     <input class="field-v" id="hfUrlInput" type="text" value="https://ryanrealaf-stemforge.hf.space"/>
-    <div class="modal-note">
-      Deploy <em>app.py</em> to your Hugging Face Space to enable Demucs v4 separation.
-      The URL above must point to a running Space instance.
-    </div>
     <button class="btn-save" id="saveSettings">Save</button>
   </div>
 </div>
@@ -1072,7 +1068,7 @@ function populateAnalysisGrid() {
   // Rhythm — from drums BPM estimate
   const bpmText = document.getElementById('sm-drums-bpm').textContent;
   const bpm     = parseInt(bpmText) || 0;
-  document.getElementById('rp-bpm').textContent    = bpm ? bpm + ' bpm' : '—';
+  document.getElementById('rp-bpm').textContent    = bpm ? bpm + ' bpm' : '';
   document.getElementById('rp-ts').textContent     = '4/4';
   document.getElementById('rp-groove').textContent = bpm > 85 && bpm < 105 ? 'boom-bap pocket' : bpm > 130 ? 'uptempo' : 'mid-tempo';
   const dfReady = levels.drums > 15 && qualMap(levels.drums) !== 'weak';
