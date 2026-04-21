@@ -1191,22 +1191,26 @@ document.getElementById('fileInput').addEventListener('change', async (e) => {
     const job_id = uploadData.job_id || uploadData;
     if (!job_id) throw new Error('No job_id in upload response');
     state.currentJobId = job_id;
-    setProgress(5);
+    setProgress(1); // Initial progress
 
-    // 2. Poll status — files embedded in completion response
+    // 2. Poll status for real-time progress
     await new Promise((resolve, reject) => {
       const poll = setInterval(async () => {
         try {
           const statusRes = await fetch(`${url}/status/${job_id}`);
-          if (!statusRes.ok) return;
+          if (!statusRes.ok) return; // Keep polling on simple network errors
+          
           const raw = await statusRes.json();
           const status = raw.status;
+          const progress = raw.progress;
+
+          if (progress !== undefined) {
+            setProgress(progress);
+          }
 
           if (status === 'complete') {
             clearInterval(poll);
-            setProgress(90);
-
-            // Stem URLs come back inline in the status response
+            // Stem URLs come back inline in the completion response
             const files = raw.files || {};
             ['vocals', 'bass', 'drums', 'other'].forEach(stem => {
               const p = files[stem];
@@ -1214,27 +1218,29 @@ document.getElementById('fileInput').addEventListener('change', async (e) => {
             });
 
             if (Object.keys(state.stemUrls).length === 0) {
-              reject(new Error('Status complete but no file URLs returned'));
+              reject(new Error('Status is complete but no file URLs were returned.'));
             } else {
               resolve();
             }
+
           } else if (status === 'error') {
             clearInterval(poll);
-            reject(new Error(raw.error || 'Separation failed on backend'));
-          } else {
-            const cur = parseFloat(document.getElementById('progressFill').style.width) || 5;
-            setProgress(Math.min(85, cur + 0.5));
+            reject(new Error(raw.error || 'Separation failed on the backend.'));
           }
-        } catch { /* network blip — keep polling */ }
-      }, 3000);
+          // If status is 'processing', just continue polling.
+
+        } catch (err) {
+          // On a fatal error, stop polling and reject.
+          clearInterval(poll);
+          reject(err);
+        }
+      }, 2000); // Poll every 2 seconds
     });
 
-    setProgress(95);
-
-    // 4. Decode all stem audio buffers
+    // 3. Decode all stem audio buffers
     await loadStemBuffers(state.stemUrls);
 
-    // 5. Load vocals (or first available stem) into WaveSurfer for visual
+    // 4. Load vocals (or first available stem) into WaveSurfer for visual display
     const visualStem = state.stemUrls.vocals || Object.values(state.stemUrls)[0];
     if (ws) ws.load(visualStem);
 
@@ -1242,15 +1248,16 @@ document.getElementById('fileInput').addEventListener('change', async (e) => {
     finishLoad();
 
   } catch (err) {
-    console.error('[StemForge]', err);
+    console.error('[StemForge] Pipeline Error:', err);
     showProcessing(false);
     showHardError(err.message);
   }
 });
 
 function setProgress(p) {
-  document.getElementById('progressFill').style.width = p + '%';
-  document.getElementById('progressPct').textContent = Math.round(p) + '% COMPLETE';
+  const clamped = Math.min(100, Math.max(0, p));
+  document.getElementById('progressFill').style.width = clamped + '%';
+  document.getElementById('progressPct').textContent = Math.round(clamped) + '% COMPLETE';
 }
 
 function finishLoad() {
@@ -1264,15 +1271,17 @@ function finishLoad() {
 function showProcessing(v) {
   state.isProcessing = v;
   document.getElementById('processingOverlay').classList.toggle('active', v);
-  if (v) setProgress(0);
+  if (v) {
+    clearError();
+    setProgress(0);
+  }
 }
 
 function showHardError(msg) {
-  // Show error state in the waveform card
   const overlay = document.getElementById('errorOverlay');
   const msgEl = document.getElementById('errorMsg');
   if (overlay) overlay.classList.add('active');
-  if (msgEl) msgEl.textContent = msg;
+  if (msgEl) msgEl.textContent = msg || 'An unknown error occurred.';
   hideEmpty(true);
 }
 
@@ -1289,7 +1298,7 @@ function hideEmpty(v) {
 document.getElementById('retryBtn').addEventListener('click', () => {
   clearError();
   hideEmpty(false);
-  document.getElementById('fileInput').value = '';
+  document.getElementById('fileInput').value = ''; // Allow re-uploading the same file
 });
 
 // ── Transport ──────────────────────────────────────────────────────
