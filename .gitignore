@@ -32,3 +32,10 @@ flutter_export_environment.sh
 .dart_tool/
 lib/generated_plugin_registrant.dart
 pubspec.lock
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
