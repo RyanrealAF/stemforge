@@ -1,0 +1,19 @@
+name: Add HF Remote and Push
+
+on:
+  workflow_dispatch:
+
+jobs:
+  push-to-hf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push to Hugging Face Space
+        env:
+          HUG_API_KEY: ${{ secrets.HUG_API_KEY }}
+        run: |
+          git remote add huggingface https://Ryanrealaf:$HUG_API_KEY@huggingface.co/spaces/Ryanrealaf/stemforge.git
+          git push huggingface main --force
