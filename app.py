@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import asyncio
 import uuid
 import os
@@ -23,10 +24,24 @@ OUTPUT_DIR = "separated"
 if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
 
+app.mount(f"/{OUTPUT_DIR}", StaticFiles(directory=OUTPUT_DIR), name=OUTPUT_DIR)
+
+MAX_UPLOAD_SIZE = 100 * 1024 * 1024
+
 # In-memory dictionary to store the status and progress of processing jobs.
 # In a production environment, you might want to use a more persistent storage
 # like Redis or a database.
 jobs = {}
+
+def sanitize_filename(filename: str) -> str:
+    """
+    Sanitizes an uploaded filename while preserving the extension for Demucs.
+    """
+    filename = os.path.basename(filename or "upload")
+    name, ext = os.path.splitext(filename)
+    safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", name).strip("._-")
+    safe_ext = re.sub(r"[^A-Za-z0-9.]+", "", ext)
+    return f"{safe_name or 'upload'}{safe_ext}"
 
 async def run_demucs(job_id: str, file_path: str, original_filename: str):
     """
@@ -36,10 +51,15 @@ async def run_demucs(job_id: str, file_path: str, original_filename: str):
         output_path = os.path.join(OUTPUT_DIR, job_id)
         # The command to run demucs. We're using the CPU version for broader compatibility.
         # You can adjust the separation model as needed.
-        command = f"python3 -m demucs.separate -d cpu --two-stems=vocals \"{file_path}\" -o \"{output_path}\""
-        
-        process = await asyncio.create_subprocess_shell(
-            command,
+        process = await asyncio.create_subprocess_exec(
+            "python3",
+            "-m",
+            "demucs.separate",
+            "-d",
+            "cpu",
+            file_path,
+            "-o",
+            output_path,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
@@ -69,16 +89,15 @@ async def run_demucs(job_id: str, file_path: str, original_filename: str):
             jobs[job_id]["status"] = "complete"
             jobs[job_id]["progress"] = 100
             
-            # IMPORTANT: Replace with your actual Hugging Face Space URL.
-            base_url = "https://ryanrealaf-stemforge.hf.space/file="
             file_name_without_ext = os.path.splitext(original_filename)[0]
+            base_path = f"/{OUTPUT_DIR}/{job_id}/htdemucs/{file_name_without_ext}"
             
             # Construct the URLs for the separated audio files.
             jobs[job_id]["files"] = {
-                "vocals": f"{base_url}{os.path.join(output_path, 'htdemucs', file_name_without_ext, 'vocals.wav')}",
-                "bass": f"{base_url}{os.path.join(output_path, 'htdemucs', file_name_without_ext, 'bass.wav')}",
-                "drums": f"{base_url}{os.path.join(output_path, 'htdemucs', file_name_without_ext, 'drums.wav')}",
-                "other": f"{base_url}{os.path.join(output_path, 'htdemucs', file_name_without_ext, 'other.wav')}"
+                "vocals": f"{base_path}/vocals.wav",
+                "bass": f"{base_path}/bass.wav",
+                "drums": f"{base_path}/drums.wav",
+                "other": f"{base_path}/other.wav"
             }
         else:
             # If there's an error, capture the error message.
@@ -94,25 +113,39 @@ async def run_demucs(job_id: str, file_path: str, original_filename: str):
             os.remove(file_path)
 
 
-@app.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
+async def create_separation_job(file: UploadFile):
     """
     Uploads an audio file, saves it temporarily, and starts the demucs processing.
     """
     job_id = str(uuid.uuid4())
-    file_path = f"{job_id}_{file.filename}"
+    sanitized_filename = sanitize_filename(file.filename)
+    file_path = f"{job_id}_{sanitized_filename}"
     
     # Save the uploaded file to a temporary location.
+    size = 0
     with open(file_path, "wb") as buffer:
-        buffer.write(await file.read())
+        while chunk := await file.read(1024 * 1024):
+            size += len(chunk)
+            if size > MAX_UPLOAD_SIZE:
+                os.remove(file_path)
+                raise HTTPException(status_code=413, detail="File exceeds 100MB upload limit")
+            buffer.write(chunk)
     
     # Initialize the job status.
     jobs[job_id] = {"status": "processing", "progress": 0}
     
     # Start the demucs process in the background.
-    asyncio.create_task(run_demucs(job_id, file_path, file.filename))
+    asyncio.create_task(run_demucs(job_id, file_path, sanitized_filename))
     
     return JSONResponse(content={"job_id": job_id})
+
+@app.post("/upload")
+async def upload_file(file: UploadFile = File(...)):
+    return await create_separation_job(file)
+
+@app.post("/separate")
+async def separate_file(file: UploadFile = File(...)):
+    return await create_separation_job(file)
 
 @app.get("/status/{job_id}")
 async def get_status(job_id: str):

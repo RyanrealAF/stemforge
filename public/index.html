@@ -1101,7 +1101,7 @@ async function runPipeline(file) {
     const fd = new FormData();
     fd.append('file', file);
     setProgress(5);
-    const uploadRes = await fetch(`${url}/separate`, { method:'POST', body:fd });
+    const uploadRes = await fetch(`${url}/upload`, { method:'POST', body:fd });
     if (!uploadRes.ok) throw new Error(`Upload failed: HTTP ${uploadRes.status}`);
     const { job_id } = await uploadRes.json();
     if (!job_id) throw new Error('No job_id returned from upload');
