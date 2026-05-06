@@ -6,6 +6,7 @@ import asyncio
 import uuid
 import os
 import re
+from urllib.parse import quote
 
 app = FastAPI()
 
@@ -43,6 +44,36 @@ def sanitize_filename(filename: str) -> str:
     safe_ext = re.sub(r"[^A-Za-z0-9.]+", "", ext)
     return f"{safe_name or 'upload'}{safe_ext}"
 
+def get_separated_outputs(job_id: str):
+    """
+    Finds all files Demucs generated for a job and returns StaticFiles URLs.
+    """
+    job_output_dir = os.path.join(OUTPUT_DIR, job_id)
+    outputs = []
+
+    if not os.path.isdir(job_output_dir):
+        return outputs
+
+    for root, _, filenames in os.walk(job_output_dir):
+        for filename in sorted(filenames):
+            file_path = os.path.join(root, filename)
+            if not os.path.isfile(file_path):
+                continue
+
+            relative_path = os.path.relpath(file_path, job_output_dir)
+            relative_url_path = relative_path.replace(os.sep, "/")
+            url = f"/{OUTPUT_DIR}/{quote(job_id)}/{quote(relative_url_path, safe='/')}"
+
+            outputs.append({
+                "filename": filename,
+                "relative_path": relative_url_path,
+                "size": os.path.getsize(file_path),
+                "url": url
+            })
+
+    outputs.sort(key=lambda output: output["relative_path"])
+    return outputs
+
 async def run_demucs(job_id: str, file_path: str, original_filename: str):
     """
     Runs the demucs command in a subprocess and updates the job status.
@@ -57,6 +88,8 @@ async def run_demucs(job_id: str, file_path: str, original_filename: str):
             "demucs.separate",
             "-d",
             "cpu",
+            "-n",
+            "htdemucs_6s",
             file_path,
             "-o",
             output_path,
@@ -88,17 +121,7 @@ async def run_demucs(job_id: str, file_path: str, original_filename: str):
             # If the process is successful, update the status and progress.
             jobs[job_id]["status"] = "complete"
             jobs[job_id]["progress"] = 100
-            
-            file_name_without_ext = os.path.splitext(original_filename)[0]
-            base_path = f"/{OUTPUT_DIR}/{job_id}/htdemucs/{file_name_without_ext}"
-            
-            # Construct the URLs for the separated audio files.
-            jobs[job_id]["files"] = {
-                "vocals": f"{base_path}/vocals.wav",
-                "bass": f"{base_path}/bass.wav",
-                "drums": f"{base_path}/drums.wav",
-                "other": f"{base_path}/other.wav"
-            }
+            jobs[job_id]["files"] = get_separated_outputs(job_id)
         else:
             # If there's an error, capture the error message.
             jobs[job_id]["status"] = "error"
