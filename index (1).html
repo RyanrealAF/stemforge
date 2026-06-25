@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>StemForge — Build While Bleeding</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/wavesurfer.js/7.7.3/wavesurfer.min.js"></script>
+<style>
+:root {
+  --bg:       #090909;
+  --s1:       #0f0f10;
+  --s2:       #161617;
+  --s3:       #1e1e1f;
+  --s4:       #252526;
+  --border:   rgba(255,255,255,0.05);
+  --border2:  rgba(255,255,255,0.09);
+  --border3:  rgba(255,255,255,0.15);
+  --text:     #e2e2e2;
+  --muted:    #555;
+  --dim:      #333;
+  --red:      #C0392B;
+  --red-d:    rgba(192,57,43,0.10);
+  --red-b:    rgba(192,57,43,0.28);
+  --red-h:    #a93226;
+  --green:    #4ade80;
+  --green-d:  rgba(74,222,128,0.07);
+  --green-b:  rgba(74,222,128,0.18);
+  --blue:     #60a5fa;
+  --blue-d:   rgba(96,165,250,0.08);
+  --purple:   #a78bfa;
+  --purple-d: rgba(167,139,250,0.09);
+  --amber:    #fbbf24;
+  --amber-d:  rgba(251,191,36,0.08);
+  --mono:     'DM Mono', monospace;
+  --cond:     'Barlow Condensed', sans-serif;
+}
+
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::after {
+  content: '';
+  position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+  opacity: .015;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+
+/* ── Header ── */
+header {
+  height: 52px; padding: 0 2rem;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(9,9,9,0.94); backdrop-filter: blur(16px);
+}
+
+.wordmark { display: flex; align-items: baseline; gap: 8px; }
+.wm-forge {
+  font-family: var(--cond);
+  font-size: 20px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text);
+}
+.wm-forge span { color: var(--red); }
+.wm-sep { color: var(--dim); font-size: 14px; margin: 0 2px; }
+.wm-sub {
+  font-family: var(--mono); font-size: 10px;
+  color: var(--muted); letter-spacing: 0.12em;
+}
+
+.header-right { display: flex; align-items: center; gap: 10px; }
+
+.sys-badge {
+  font-family: var(--mono); font-size: 10px; font-weight: 500;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 3px 10px; border-radius: 2px;
+  display: flex; align-items: center; gap: 6px;
+  transition: all .2s;
+}
+.sys-badge.idle    { background: var(--s2); color: var(--muted);  border: 1px solid var(--border2); }
+.sys-badge.active  { background: var(--red-d); color: var(--red); border: 1px solid var(--red-b); }
+.sys-badge.ready   { background: var(--green-d); color: var(--green); border: 1px solid var(--green-b); }
+.sys-badge.error   { background: rgba(248,113,113,0.08); color: #f87171; border: 1px solid rgba(248,113,113,0.2); }
+
+.status-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.dot-idle   { background: var(--muted); }
+.dot-active { background: var(--red); animation: blink 1.2s ease-in-out infinite; }
+.dot-ready  { background: var(--green); }
+.dot-error  { background: #f87171; }
+
+.btn-load {
+  height: 30px; padding: 0 14px;
+  background: var(--red); color: #fff; border: none; border-radius: 2px;
+  font-family: var(--cond); font-size: 13px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  cursor: pointer; position: relative; overflow: hidden;
+  display: flex; align-items: center; gap: 7px;
+  transition: background .15s;
+}
+.btn-load:hover { background: var(--red-h); }
+.btn-load input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+
+/* ── Layout ── */
+main {
+  max-width: 1280px; margin: 0 auto;
+  padding: 1.5rem 2rem 4rem;
+  display: flex; flex-direction: column; gap: 1px;
+}
+
+/* ── Upload zone ── */
+.upload-zone {
+  background: var(--s1);
+  border: 1px dashed var(--dim);
+  border-radius: 4px;
+  padding: 40px 24px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 12px;
+  cursor: pointer; position: relative; overflow: hidden;
+  transition: border-color .2s, background .2s;
+  text-align: center;
+}
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color: var(--red);
+  background: var(--red-d);
+}
+.upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.upload-icon {
+  width: 40px; height: 40px; border: 1px solid var(--dim);
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  color: var(--muted);
+}
+.upload-label {
+  font-family: var(--cond); font-size: 16px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+}
+.upload-sub { font-family: var(--mono); font-size: 10px; color: var(--dim); letter-spacing: 0.08em; }
+.upload-zone.hidden { display: none; }
+
+/* ── Processing block ── */
+.processing-block {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 4px; padding: 32px 24px;
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+  text-align: center;
+}
+.processing-block.hidden { display: none; }
+
+.proc-title {
+  font-family: var(--cond); font-size: 22px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--red);
+  display: flex; align-items: center; gap: 10px;
+}
+.proc-spinner {
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 2px solid var(--red-b); border-top-color: var(--red);
+  animation: spin .7s linear infinite; flex-shrink: 0;
+}
+.proc-filename {
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+  letter-spacing: 0.06em; max-width: 480px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.prog-wrap { width: 360px; max-width: 90%; }
+.prog-track {
+  height: 2px; background: var(--s3); border-radius: 1px; overflow: hidden;
+  margin-bottom: 6px;
+}
+.prog-fill {
+  height: 100%; background: var(--red); border-radius: 1px;
+  width: 0%; transition: width .4s cubic-bezier(.4,0,.2,1);
+}
+.prog-row {
+  display: flex; justify-content: space-between;
+  font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 0.06em;
+}
+.proc-step { font-family: var(--mono); font-size: 10px; color: var(--dim); letter-spacing: 0.06em; }
+
+/* ── Error block ── */
+.error-block {
+  background: rgba(248,113,113,0.05); border: 1px solid rgba(248,113,113,0.15);
+  border-radius: 4px; padding: 28px 24px;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  text-align: center;
+}
+.error-block.hidden { display: none; }
+.err-code { font-family: var(--mono); font-size: 10px; color: #f87171; letter-spacing: 0.2em; text-transform: uppercase; }
+.err-msg { font-family: var(--mono); font-size: 11px; color: var(--muted); line-height: 1.8; max-width: 480px; }
+.btn-retry {
+  background: transparent; border: 1px solid var(--dim); color: var(--muted);
+  border-radius: 2px; padding: 6px 18px;
+  font-family: var(--mono); font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.12em; cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.btn-retry:hover { border-color: var(--red); color: var(--red); }
+
+/* ── Results ── */
+.results-block { display: flex; flex-direction: column; gap: 1px; }
+.results-block.hidden { display: none; }
+
+.results-header {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 4px 4px 0 0; padding: 12px 18px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px;
+}
+.results-title {
+  font-family: var(--cond); font-size: 13px; font-weight: 700;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--text);
+  display: flex; align-items: center; gap: 10px;
+}
+.results-title-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green); flex-shrink: 0;
+}
+.results-meta { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 0.06em; }
+
+.btn-new {
+  height: 28px; padding: 0 12px;
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--dim); border-radius: 2px;
+  font-family: var(--mono); font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.1em; cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.btn-new:hover { border-color: var(--border3); color: var(--text); }
+
+/* ── Stem grid ── */
+.stem-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+}
+
+.stem-card {
+  background: var(--s1); border: 1px solid var(--border);
+  overflow: hidden;
+  opacity: 0.35; transition: opacity .4s;
+}
+.stem-card.loaded { opacity: 1; }
+.stem-card:first-child { border-radius: 0; }
+
+.stem-header {
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.stem-name {
+  font-family: var(--cond); font-size: 15px; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase;
+}
+
+/* Stem colors */
+.stem-name.vocals  { color: var(--purple); }
+.stem-name.bass    { color: var(--blue); }
+.stem-name.drums   { color: var(--red); }
+.stem-name.other   { color: var(--muted); }
+.stem-name.guitar  { color: var(--green); }
+.stem-name.piano   { color: var(--amber); }
+
+.stem-size {
+  font-family: var(--mono); font-size: 9px; color: var(--dim);
+  letter-spacing: 0.1em;
+}
+
+.stem-waveform { padding: 10px 14px; min-height: 54px; }
+
+.stem-controls {
+  padding: 8px 14px 12px;
+  display: flex; align-items: center; gap: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.btn-play-stem {
+  width: 30px; height: 30px; border-radius: 2px;
+  border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: background .15s;
+}
+.btn-play-stem.vocals  { background: var(--purple); color: #fff; }
+.btn-play-stem.bass    { background: var(--blue); color: #fff; }
+.btn-play-stem.drums   { background: var(--red); color: #fff; }
+.btn-play-stem.other   { background: var(--s4); color: var(--muted); border: 1px solid var(--border2); }
+.btn-play-stem.guitar  { background: var(--green); color: #000; }
+.btn-play-stem.piano   { background: var(--amber); color: #000; }
+.btn-play-stem:hover { filter: brightness(1.15); }
+.btn-play-stem:disabled { opacity: 0.35; cursor: not-allowed; filter: none; }
+
+.stem-fader {
+  flex: 1; display: flex; align-items: center; gap: 8px;
+}
+.fader-label { font-family: var(--mono); font-size: 9px; color: var(--dim); letter-spacing: 0.1em; width: 14px; }
+input[type=range].fader {
+  -webkit-appearance: none; appearance: none;
+  flex: 1; height: 2px; border-radius: 1px; outline: none; cursor: pointer;
+  background: var(--s4);
+}
+input[type=range].fader::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--border3); cursor: pointer;
+  transition: background .15s;
+}
+input[type=range].fader::-webkit-slider-thumb:hover { background: var(--text); }
+
+.fader-val { font-family: var(--mono); font-size: 9px; color: var(--dim); width: 26px; text-align: right; }
+
+.btn-dl {
+  height: 30px; padding: 0 10px;
+  background: transparent; border: 1px solid var(--border2);
+  border-radius: 2px; color: var(--muted);
+  font-family: var(--mono); font-size: 9px; text-transform: uppercase;
+  letter-spacing: 0.1em; cursor: pointer; text-decoration: none;
+  display: flex; align-items: center; gap: 5px;
+  transition: border-color .15s, color .15s;
+  flex-shrink: 0;
+}
+.btn-dl:hover { border-color: var(--border3); color: var(--text); }
+
+/* ── Download all bar ── */
+.dl-bar {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 0 0 4px 4px; padding: 12px 18px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px;
+}
+.dl-bar-label { font-family: var(--mono); font-size: 10px; color: var(--dim); letter-spacing: 0.08em; }
+
+.btn-dl-all {
+  height: 32px; padding: 0 16px;
+  background: var(--red); color: #fff; border: none; border-radius: 2px;
+  font-family: var(--cond); font-size: 13px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  cursor: pointer; display: flex; align-items: center; gap: 7px;
+  text-decoration: none; transition: background .15s;
+}
+.btn-dl-all:hover { background: var(--red-h); }
+.btn-dl-all.hidden { display: none; }
+
+/* ── Animations ── */
+@keyframes spin  { to { transform: rotate(360deg); } }
+@keyframes blink { 0%,100% { opacity:1; } 50% { opacity:.3; } }
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .stem-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 560px) {
+  main { padding: 1rem 1rem 3rem; }
+  .stem-grid { grid-template-columns: 1fr; }
+  header { padding: 0 1rem; }
+  .wm-sub { display: none; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wordmark">
+    <span class="wm-forge">STEM<span>FORGE</span></span>
+    <span class="wm-sep">/</span>
+    <span class="wm-sub">htdemucs_6s · buildwhilebleeding.com</span>
+  </div>
+  <div class="header-right">
+    <div class="sys-badge idle" id="statusBadge">
+      <span class="status-dot dot-idle" id="statusDot"></span>
+      <span id="statusText">IDLE</span>
+    </div>
+    <label class="btn-load" id="headerLoadBtn">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      LOAD TRACK
+      <input type="file" accept="audio/*" id="headerFileInput"/>
+    </label>
+  </div>
+</header>
+
+<main>
+
+  <!-- Upload zone -->
+  <div class="upload-zone" id="uploadZone">
+    <input type="file" accept="audio/*" id="zoneFileInput"/>
+    <div class="upload-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    </div>
+    <div class="upload-label">Drop audio file or click to upload</div>
+    <div class="upload-sub">MP3 · WAV · FLAC · M4A · max 100MB</div>
+  </div>
+
+  <!-- Processing -->
+  <div class="processing-block hidden" id="processingBlock">
+    <div class="proc-title">
+      <span class="proc-spinner"></span>
+      SEPARATING
+    </div>
+    <div class="proc-filename" id="procFilename">—</div>
+    <div class="prog-wrap">
+      <div class="prog-track"><div class="prog-fill" id="progFill"></div></div>
+      <div class="prog-row">
+        <span id="procStep">Initializing demucs...</span>
+        <span id="procPct">0%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div class="error-block hidden" id="errorBlock">
+    <div class="err-code">// SEPARATION FAILED</div>
+    <div class="err-msg" id="errMsg">An error occurred during processing.</div>
+    <button class="btn-retry" id="retryBtn">RETRY</button>
+  </div>
+
+  <!-- Results -->
+  <div class="results-block hidden" id="resultsBlock">
+    <div class="results-header">
+      <div class="results-title">
+        <span class="results-title-dot"></span>
+        SEPARATION COMPLETE
+        <span class="results-meta" id="resultsMeta"></span>
+      </div>
+      <button class="btn-new" id="newTrackBtn">+ NEW TRACK</button>
+    </div>
+
+    <div class="stem-grid" id="stemGrid">
+      <!-- Stem cards injected by JS -->
+    </div>
+
+    <div class="dl-bar">
+      <span class="dl-bar-label">// 6 stems · WAV · htdemucs_6s</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;" id="dlAllWrap"></div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+const API_BASE = '';
+const POLL_MS  = 1500;
+
+const STEMS = [
+  { key: 'drums',  label: 'Drums',  color: '#C0392B' },
+  { key: 'bass',   label: 'Bass',   color: '#60a5fa' },
+  { key: 'other',  label: 'Other',  color: '#555'    },
+  { key: 'vocals', label: 'Vocals', color: '#a78bfa' },
+  { key: 'guitar', label: 'Guitar', color: '#4ade80' },
+  { key: 'piano',  label: 'Piano',  color: '#fbbf24' },
+];
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+let currentJobId  = null;
+let pollTimer     = null;
+let wavesurfers   = {};
+
+// ── DOM REFS ─────────────────────────────────────────────────────────────────
+const uploadZone     = document.getElementById('uploadZone');
+const zoneFileInput  = document.getElementById('zoneFileInput');
+const headerFileInput= document.getElementById('headerFileInput');
+const processingBlock= document.getElementById('processingBlock');
+const errorBlock     = document.getElementById('errorBlock');
+const resultsBlock   = document.getElementById('resultsBlock');
+const statusBadge    = document.getElementById('statusBadge');
+const statusDot      = document.getElementById('statusDot');
+const statusText     = document.getElementById('statusText');
+const progFill       = document.getElementById('progFill');
+const procFilename   = document.getElementById('procFilename');
+const procStep       = document.getElementById('procStep');
+const procPct        = document.getElementById('procPct');
+const errMsg         = document.getElementById('errMsg');
+const stemGrid       = document.getElementById('stemGrid');
+const resultsMeta    = document.getElementById('resultsMeta');
+const dlAllWrap      = document.getElementById('dlAllWrap');
+
+// ── STATUS BADGE ─────────────────────────────────────────────────────────────
+function setStatus(state, label) {
+  statusBadge.className = `sys-badge ${state}`;
+  statusDot.className   = `status-dot dot-${state}`;
+  statusText.textContent = label;
+}
+
+// ── VIEW SWITCHING ────────────────────────────────────────────────────────────
+function showView(view) {
+  uploadZone.classList.toggle('hidden',     view !== 'upload');
+  processingBlock.classList.toggle('hidden', view !== 'processing');
+  errorBlock.classList.toggle('hidden',      view !== 'error');
+  resultsBlock.classList.toggle('hidden',    view !== 'results');
+}
+
+// ── FILE INPUT HANDLERS ───────────────────────────────────────────────────────
+zoneFileInput.addEventListener('change',  e => e.target.files[0] && startJob(e.target.files[0]));
+headerFileInput.addEventListener('change', e => e.target.files[0] && startJob(e.target.files[0]));
+
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) startJob(f);
+});
+
+document.getElementById('retryBtn').addEventListener('click', () => showView('upload'));
+document.getElementById('newTrackBtn').addEventListener('click', resetAll);
+
+// ── RESET ─────────────────────────────────────────────────────────────────────
+function resetAll() {
+  clearInterval(pollTimer);
+  pollTimer = null;
+  currentJobId = null;
+  Object.values(wavesurfers).forEach(ws => { try { ws.destroy(); } catch(e){} });
+  wavesurfers = {};
+  stemGrid.innerHTML = '';
+  dlAllWrap.innerHTML = '';
+  zoneFileInput.value  = '';
+  headerFileInput.value = '';
+  setStatus('idle', 'IDLE');
+  showView('upload');
+}
+
+// ── UPLOAD + START JOB ────────────────────────────────────────────────────────
+async function startJob(file) {
+  clearInterval(pollTimer);
+  setStatus('active', 'UPLOADING');
+  showView('processing');
+  procFilename.textContent = file.name;
+  progFill.style.width = '0%';
+  procPct.textContent  = '0%';
+  procStep.textContent = 'Uploading...';
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  let resp;
+  try {
+    resp = await fetch(`${API_BASE}/separate`, { method: 'POST', body: formData });
+  } catch(e) {
+    showError(`Network error: ${e.message}`);
+    return;
+  }
+
+  if (!resp.ok) {
+    const txt = await resp.text().catch(() => resp.statusText);
+    showError(`Upload failed (${resp.status}): ${txt}`);
+    return;
+  }
+
+  let data;
+  try { data = await resp.json(); } catch(e) { showError('Invalid server response.'); return; }
+
+  currentJobId = data.job_id;
+  procStep.textContent = 'Queued — waiting for worker...';
+  setStatus('active', 'PROCESSING');
+  pollTimer = setInterval(pollJob, POLL_MS);
+}
+
+// ── POLL ──────────────────────────────────────────────────────────────────────
+async function pollJob() {
+  if (!currentJobId) return;
+
+  let resp;
+  try { resp = await fetch(`${API_BASE}/jobs/${currentJobId}`); }
+  catch(e) { return; } // transient — keep polling
+
+  if (!resp.ok) return;
+
+  let job;
+  try { job = await resp.json(); } catch(e) { return; }
+
+  const pct = job.progress || 0;
+  progFill.style.width = `${pct}%`;
+  procPct.textContent  = `${pct}%`;
+
+  if (job.status === 'queued')      procStep.textContent = 'Queued — waiting for worker...';
+  if (job.status === 'processing')  procStep.textContent = `Running htdemucs_6s — ${pct}%`;
+
+  if (job.status === 'complete') {
+    clearInterval(pollTimer);
+    setStatus('ready', 'COMPLETE');
+    buildResults(job);
+  }
+
+  if (job.status === 'error') {
+    clearInterval(pollTimer);
+    showError(job.error || 'Unknown separation error.');
+  }
+}
+
+// ── ERROR VIEW ────────────────────────────────────────────────────────────────
+function showError(msg) {
+  setStatus('error', 'ERROR');
+  errMsg.textContent = msg;
+  showView('error');
+}
+
+// ── BUILD RESULTS ─────────────────────────────────────────────────────────────
+function buildResults(job) {
+  stemGrid.innerHTML = '';
+  dlAllWrap.innerHTML = '';
+  Object.values(wavesurfers).forEach(ws => { try { ws.destroy(); } catch(e){} });
+  wavesurfers = {};
+
+  // Map filename → url from job.files
+  const fileMap = {};
+  (job.files || []).forEach(f => {
+    // filename like "drums.wav" or path "htdemucs_6s/trackname/drums.wav"
+    const base = f.filename.replace(/\.wav$/i, '').toLowerCase();
+    fileMap[base] = f.url;
+  });
+
+  resultsMeta.textContent = `· ${job.filename || ''}`;
+
+  STEMS.forEach(stem => {
+    const url = fileMap[stem.key];
+    const card = buildStemCard(stem, url);
+    stemGrid.appendChild(card);
+
+    if (url) {
+      // Build wavesurfer after DOM paint
+      requestAnimationFrame(() => initWavesurfer(stem.key, url, stem.color));
+
+      // Download all link
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${stem.key}.wav`;
+      a.className = 'btn-dl-all';
+      a.textContent = stem.key.toUpperCase();
+      a.style.background = 'transparent';
+      a.style.border = `1px solid ${stem.color}33`;
+      a.style.color = stem.color;
+      a.style.height = '28px';
+      a.style.padding = '0 10px';
+      a.style.borderRadius = '2px';
+      a.style.fontFamily = 'var(--mono)';
+      a.style.fontSize = '9px';
+      a.style.letterSpacing = '0.12em';
+      a.style.textTransform = 'uppercase';
+      a.style.textDecoration = 'none';
+      a.style.display = 'flex';
+      a.style.alignItems = 'center';
+      dlAllWrap.appendChild(a);
+    }
+  });
+
+  showView('results');
+}
+
+// ── STEM CARD ─────────────────────────────────────────────────────────────────
+function buildStemCard(stem, url) {
+  const card = document.createElement('div');
+  card.className = 'stem-card';
+  card.id = `card-${stem.key}`;
+  if (url) card.classList.add('loaded');
+
+  const sizeStr = url ? '—' : 'N/A';
+
+  card.innerHTML = `
+    <div class="stem-header">
+      <span class="stem-name ${stem.key}">${stem.label}</span>
+      <span class="stem-size" id="size-${stem.key}">${sizeStr}</span>
+    </div>
+    <div class="stem-waveform" id="wf-${stem.key}"></div>
+    <div class="stem-controls">
+      <button class="btn-play-stem ${stem.key}" id="play-${stem.key}" ${!url ? 'disabled' : ''} title="Play/Pause">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </button>
+      <div class="stem-fader">
+        <span class="fader-label">VOL</span>
+        <input type="range" class="fader" id="vol-${stem.key}" min="0" max="1" step="0.01" value="1" ${!url ? 'disabled' : ''}/>
+        <span class="fader-val" id="volval-${stem.key}">100</span>
+      </div>
+      ${url ? `<a class="btn-dl" href="${url}" download="${stem.key}.wav">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        DL
+      </a>` : ''}
+    </div>
+  `;
+
+  // Volume fader wiring
+  if (url) {
+    const volInput = card.querySelector(`#vol-${stem.key}`);
+    const volVal   = card.querySelector(`#volval-${stem.key}`);
+    volInput.addEventListener('input', () => {
+      const v = parseFloat(volInput.value);
+      volVal.textContent = Math.round(v * 100);
+      if (wavesurfers[stem.key]) wavesurfers[stem.key].setVolume(v);
+    });
+  }
+
+  return card;
+}
+
+// ── WAVESURFER INIT ───────────────────────────────────────────────────────────
+function initWavesurfer(key, url, color) {
+  const container = document.getElementById(`wf-${key}`);
+  if (!container) return;
+
+  const ws = WaveSurfer.create({
+    container,
+    url,
+    waveColor:     '#2a2a2a',
+    progressColor: color,
+    cursorColor:   color,
+    cursorWidth:   1,
+    barWidth:      2,
+    barGap:        1,
+    barRadius:     1,
+    height:        42,
+    normalize:     true,
+    backend:       'WebAudio',
+  });
+
+  wavesurfers[key] = ws;
+
+  const playBtn = document.getElementById(`play-${key}`);
+
+  ws.on('ready', () => {
+    const dur = ws.getDuration();
+    const sizeEl = document.getElementById(`size-${key}`);
+    if (sizeEl) sizeEl.textContent = formatDur(dur);
+  });
+
+  ws.on('play',  () => setPlayIcon(playBtn, true));
+  ws.on('pause', () => setPlayIcon(playBtn, false));
+  ws.on('finish',() => setPlayIcon(playBtn, false));
+
+  playBtn.addEventListener('click', () => {
+    // Pause all others
+    Object.entries(wavesurfers).forEach(([k, w]) => {
+      if (k !== key && w.isPlaying()) w.pause();
+    });
+    ws.playPause();
+  });
+}
+
+function setPlayIcon(btn, playing) {
+  btn.innerHTML = playing
+    ? `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`
+    : `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+}
+
+function formatDur(s) {
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60).toString().padStart(2, '0');
+  return `${m}:${sec}`;
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+showView('upload');
+setStatus('idle', 'IDLE');
+</script>
+</body>
+</html>
