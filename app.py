@@ -1,5 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import asyncio
@@ -47,6 +47,25 @@ STEM_ROLES = {
     "piano": "keyboard instrument stem",
     "other": "residual harmonic bed",
 }
+
+@app.get("/", response_class=HTMLResponse)
+async def serve_frontend():
+    """
+    Serves the bundled single-page frontend from the API origin.
+
+    Keeping the UI and API on the same origin prevents browser fetch failures
+    caused by static hosting or file:// pages pointing at the wrong backend.
+    """
+    index_path = "index.html"
+    if not os.path.exists(index_path):
+        raise HTTPException(status_code=404, detail="Frontend index.html not found")
+
+    with open(index_path, "r", encoding="utf-8") as index_file:
+        return HTMLResponse(content=index_file.read())
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
 
 def sanitize_filename(filename: str) -> str:
     """

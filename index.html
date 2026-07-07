@@ -538,8 +538,8 @@ input[type=range].fader::-webkit-slider-thumb:hover { background: var(--text); }
 
 <script>
 // ── CONFIG ──────────────────────────────────────────────────────────────────
-const API_BASE = '';
 const POLL_MS  = 1500;
+const API_BASE = resolveApiBase();
 
 const STEMS = [
   { key: 'drums',  label: 'Drums',  color: '#C0392B' },
@@ -549,6 +549,26 @@ const STEMS = [
   { key: 'guitar', label: 'Guitar', color: '#4ade80' },
   { key: 'piano',  label: 'Piano',  color: '#fbbf24' },
 ];
+
+function resolveApiBase() {
+  const params = new URLSearchParams(window.location.search);
+  const fromQuery = params.get('api');
+  if (fromQuery) {
+    const normalized = fromQuery.replace(/\/$/, '');
+    localStorage.setItem('stemforgeApiBase', normalized);
+    return normalized;
+  }
+
+  const saved = localStorage.getItem('stemforgeApiBase');
+  if (saved) return saved.replace(/\/$/, '');
+
+  if (window.location.protocol === 'file:') return 'http://localhost:7860';
+  return '';
+}
+
+function apiUrl(path) {
+  return `${API_BASE}${path}`;
+}
 
 // ── STATE ────────────────────────────────────────────────────────────────────
 let currentJobId  = null;
@@ -640,9 +660,9 @@ async function startJob(file) {
 
   let resp;
   try {
-    resp = await fetch(`${API_BASE}/separate`, { method: 'POST', body: formData });
+    resp = await fetch(apiUrl('/separate'), { method: 'POST', body: formData });
   } catch(e) {
-    showError(`Network error: ${e.message}`);
+    showError(`Failed to reach the StemForge API at "${API_BASE || window.location.origin}". If this page is hosted separately, reload it with ?api=https://YOUR-BACKEND-URL or serve it from the FastAPI app.`);
     return;
   }
 
@@ -666,7 +686,7 @@ async function pollJob() {
   if (!currentJobId) return;
 
   let resp;
-  try { resp = await fetch(`${API_BASE}/jobs/${currentJobId}`); }
+  try { resp = await fetch(apiUrl(`/jobs/${currentJobId}`)); }
   catch(e) { return; } // transient — keep polling
 
   if (!resp.ok) return;
@@ -714,6 +734,7 @@ function buildResults(job) {
     // filename like "drums.wav" or path "htdemucs_6s/trackname/drums.wav"
     const base = f.filename.replace(/\.(wav|mid|midi)$/i, '').toLowerCase();
     const ext = (f.analysis && f.analysis.extension) || f.filename.split('.').pop().toLowerCase();
+    if (f.url && f.url.startsWith('/')) f.url = apiUrl(f.url);
     fileMap[`${base}.${ext}`] = f;
   });
 
