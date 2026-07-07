@@ -349,6 +349,84 @@ input[type=range].fader::-webkit-slider-thumb:hover { background: var(--text); }
 .btn-dl-all:hover { background: var(--red-h); }
 .btn-dl-all.hidden { display: none; }
 
+/* ── Separation analytics ── */
+.analytics-panel {
+  background: var(--s1); border: 1px solid var(--border);
+  border-top: none; border-radius: 0 0 4px 4px;
+  padding: 16px 18px 18px; display: none; flex-direction: column; gap: 14px;
+}
+.analytics-panel.visible { display: flex; }
+.analytics-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+}
+.analytics-title {
+  font-family: var(--cond); font-size: 14px; font-weight: 700;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--text);
+}
+.analytics-sub {
+  font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 0.06em;
+}
+.analytics-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
+}
+.chart-card {
+  background: var(--bg); border: 1px solid var(--border); padding: 14px;
+}
+.chart-label {
+  font-family: var(--mono); font-size: 9px; font-weight: 700;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); margin-bottom: 12px;
+}
+.bar-chart { display: flex; flex-direction: column; gap: 8px; }
+.bar-row {
+  display: grid; grid-template-columns: 72px 1fr 64px; align-items: center; gap: 10px;
+}
+.bar-name {
+  font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase;
+}
+.bar-track { height: 8px; background: var(--s3); border-radius: 999px; overflow: hidden; }
+.bar-fill {
+  height: 100%; border-radius: 999px; min-width: 2px;
+  animation: grow-bar .7s cubic-bezier(.22,1,.36,1) both;
+}
+.bar-value {
+  font-family: var(--mono); font-size: 10px; color: var(--text); text-align: right;
+}
+.donut-wrap { display: grid; grid-template-columns: 148px 1fr; gap: 16px; align-items: center; }
+.donut {
+  width: 132px; height: 132px; border-radius: 50%;
+  background: conic-gradient(var(--red) 0deg, var(--red) 180deg, var(--green) 180deg, var(--green) 270deg, var(--blue) 270deg);
+  position: relative; box-shadow: inset 0 0 20px rgba(0,0,0,.35);
+}
+.donut::after {
+  content: ''; position: absolute; inset: 24px; border-radius: 50%;
+  background: var(--bg); border: 1px solid var(--border);
+}
+.donut-center {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-family: var(--mono); z-index: 1;
+}
+.donut-num { font-size: 18px; color: var(--text); }
+.donut-cap { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .12em; }
+.legend { display: flex; flex-direction: column; gap: 7px; }
+.legend-row { display: flex; justify-content: space-between; gap: 10px; font-family: var(--mono); font-size: 10px; color: var(--muted); }
+.legend-row span:first-child { display: flex; align-items: center; gap: 7px; }
+.legend-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+.file-table {
+  grid-column: 1 / -1; background: var(--bg); border: 1px solid var(--border);
+  display: grid; grid-template-columns: 1.2fr .7fr .7fr 1.4fr; overflow: hidden;
+}
+.file-cell {
+  padding: 9px 10px; border-bottom: 1px solid var(--border);
+  font-family: var(--mono); font-size: 10px; color: var(--muted);
+}
+.file-cell.head {
+  color: var(--dim); font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  background: var(--s1);
+}
+.file-cell.strong { color: var(--text); }
+.file-cell.good { color: var(--green); }
+@keyframes grow-bar { from { transform: scaleX(0); transform-origin: left; } to { transform: scaleX(1); transform-origin: left; } }
+
 /* ── Animations ── */
 @keyframes spin  { to { transform: rotate(360deg); } }
 @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:.3; } }
@@ -356,6 +434,10 @@ input[type=range].fader::-webkit-slider-thumb:hover { background: var(--text); }
 /* ── Responsive ── */
 @media (max-width: 900px) {
   .stem-grid { grid-template-columns: repeat(2, 1fr); }
+  .analytics-grid { grid-template-columns: 1fr; }
+  .file-table { grid-template-columns: 1fr; }
+  .file-cell.head { display: none; }
+  .donut-wrap { grid-template-columns: 1fr; justify-items: center; }
 }
 @media (max-width: 560px) {
   main { padding: 1rem 1rem 3rem; }
@@ -440,6 +522,16 @@ input[type=range].fader::-webkit-slider-thumb:hover { background: var(--text); }
       <span class="dl-bar-label">// 6 stems · WAV · htdemucs_6s</span>
       <div style="display:flex;gap:8px;flex-wrap:wrap;" id="dlAllWrap"></div>
     </div>
+
+    <section class="analytics-panel" id="analyticsPanel" aria-live="polite">
+      <div class="analytics-head">
+        <div>
+          <div class="analytics-title">Separation intelligence</div>
+          <div class="analytics-sub" id="analyticsSummary">Per-file inspection, output mix, and MIDI handoff status.</div>
+        </div>
+      </div>
+      <div class="analytics-grid" id="analyticsGrid"></div>
+    </section>
   </div>
 
 </main>
@@ -481,6 +573,9 @@ const errMsg         = document.getElementById('errMsg');
 const stemGrid       = document.getElementById('stemGrid');
 const resultsMeta    = document.getElementById('resultsMeta');
 const dlAllWrap      = document.getElementById('dlAllWrap');
+const analyticsPanel = document.getElementById('analyticsPanel');
+const analyticsGrid  = document.getElementById('analyticsGrid');
+const analyticsSummary = document.getElementById('analyticsSummary');
 
 // ── STATUS BADGE ─────────────────────────────────────────────────────────────
 function setStatus(state, label) {
@@ -522,6 +617,8 @@ function resetAll() {
   wavesurfers = {};
   stemGrid.innerHTML = '';
   dlAllWrap.innerHTML = '';
+  analyticsGrid.innerHTML = '';
+  analyticsPanel.classList.remove('visible');
   zoneFileInput.value  = '';
   headerFileInput.value = '';
   setStatus('idle', 'IDLE');
@@ -607,21 +704,25 @@ function showError(msg) {
 function buildResults(job) {
   stemGrid.innerHTML = '';
   dlAllWrap.innerHTML = '';
+  analyticsGrid.innerHTML = '';
   Object.values(wavesurfers).forEach(ws => { try { ws.destroy(); } catch(e){} });
   wavesurfers = {};
 
-  // Map filename → url from job.files
+  // Map filename → file metadata from job.files
   const fileMap = {};
   (job.files || []).forEach(f => {
     // filename like "drums.wav" or path "htdemucs_6s/trackname/drums.wav"
-    const base = f.filename.replace(/\.wav$/i, '').toLowerCase();
-    fileMap[base] = f.url;
+    const base = f.filename.replace(/\.(wav|mid|midi)$/i, '').toLowerCase();
+    const ext = (f.analysis && f.analysis.extension) || f.filename.split('.').pop().toLowerCase();
+    fileMap[`${base}.${ext}`] = f;
   });
 
   resultsMeta.textContent = `· ${job.filename || ''}`;
 
   STEMS.forEach(stem => {
-    const url = fileMap[stem.key];
+    const wavFile = fileMap[`${stem.key}.wav`];
+    const midiFile = fileMap[`${stem.key}.mid`] || fileMap[`${stem.key}.midi`];
+    const url = wavFile && wavFile.url;
     const card = buildStemCard(stem, url);
     stemGrid.appendChild(card);
 
@@ -649,10 +750,98 @@ function buildResults(job) {
       a.style.display = 'flex';
       a.style.alignItems = 'center';
       dlAllWrap.appendChild(a);
+
+      if (midiFile) {
+        const midi = document.createElement('a');
+        midi.href = midiFile.url;
+        midi.download = `${stem.key}.mid`;
+        midi.className = 'btn-dl-all';
+        midi.textContent = `${stem.key.toUpperCase()} MIDI`;
+        midi.style.background = `${stem.color}14`;
+        midi.style.border = `1px solid ${stem.color}55`;
+        midi.style.color = stem.color;
+        midi.style.height = '28px';
+        midi.style.padding = '0 10px';
+        midi.style.borderRadius = '2px';
+        midi.style.fontFamily = 'var(--mono)';
+        midi.style.fontSize = '9px';
+        midi.style.letterSpacing = '0.12em';
+        midi.style.textTransform = 'uppercase';
+        midi.style.textDecoration = 'none';
+        midi.style.display = 'flex';
+        midi.style.alignItems = 'center';
+        dlAllWrap.appendChild(midi);
+      }
     }
   });
 
+  buildAnalytics(job.files || []);
   showView('results');
+}
+
+function buildAnalytics(files) {
+  const audioFiles = files.filter(f => f.analysis && f.analysis.file_type === 'audio');
+  const midiFiles = files.filter(f => f.analysis && f.analysis.file_type === 'midi');
+  const expectedWavs = audioFiles.filter(f => f.analysis.is_expected_wav_stem);
+  const totalBytes = files.reduce((sum, f) => sum + (f.size || 0), 0);
+  const maxBytes = Math.max(...files.map(f => f.size || 0), 1);
+  const totalOutputs = files.length;
+
+  analyticsSummary.textContent = `${expectedWavs.length}/6 WAV stems · ${midiFiles.length}/3 MIDI guides · ${formatBytes(totalBytes)} total`;
+  analyticsGrid.innerHTML = `
+    <div class="chart-card">
+      <div class="chart-label">Output size by stem</div>
+      <div class="bar-chart">
+        ${expectedWavs.map(file => {
+          const stem = STEMS.find(item => item.key === file.analysis.stem) || { color: '#777' };
+          const pct = Math.max(3, Math.round(((file.size || 0) / maxBytes) * 100));
+          return `
+            <div class="bar-row">
+              <span class="bar-name">${file.analysis.stem}</span>
+              <span class="bar-track"><span class="bar-fill" style="width:${pct}%;background:${stem.color};"></span></span>
+              <span class="bar-value">${formatBytes(file.size || 0)}</span>
+            </div>
+          `;
+        }).join('') || '<div class="analytics-sub">No WAV stems reported yet.</div>'}
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-label">Artifact mix</div>
+      <div class="donut-wrap">
+        <div class="donut" style="${buildDonutStyle(audioFiles.length, midiFiles.length, totalOutputs)}">
+          <div class="donut-center"><span class="donut-num">${totalOutputs}</span><span class="donut-cap">files</span></div>
+        </div>
+        <div class="legend">
+          <div class="legend-row"><span><i class="legend-dot" style="background:var(--red)"></i> WAV stems</span><strong>${audioFiles.length}</strong></div>
+          <div class="legend-row"><span><i class="legend-dot" style="background:var(--green)"></i> MIDI guides</span><strong>${midiFiles.length}</strong></div>
+          <div class="legend-row"><span><i class="legend-dot" style="background:var(--blue)"></i> Other artifacts</span><strong>${Math.max(0, totalOutputs - audioFiles.length - midiFiles.length)}</strong></div>
+        </div>
+      </div>
+    </div>
+    <div class="file-table">
+      <div class="file-cell head">File</div><div class="file-cell head">Stage</div><div class="file-cell head">Size</div><div class="file-cell head">Role</div>
+      ${files.map(file => `
+        <div class="file-cell strong">${file.filename}</div>
+        <div class="file-cell ${file.analysis && file.analysis.is_midi_stem ? 'good' : ''}">${file.analysis ? file.analysis.process_stage : 'export'}</div>
+        <div class="file-cell">${formatBytes(file.size || 0)}</div>
+        <div class="file-cell">${file.analysis ? file.analysis.role : 'separation output'}</div>
+      `).join('')}
+    </div>
+  `;
+  analyticsPanel.classList.add('visible');
+}
+
+function buildDonutStyle(audioCount, midiCount, totalCount) {
+  const safeTotal = Math.max(totalCount, 1);
+  const audioDeg = (audioCount / safeTotal) * 360;
+  const midiDeg = audioDeg + (midiCount / safeTotal) * 360;
+  return `background:conic-gradient(var(--red) 0deg ${audioDeg}deg,var(--green) ${audioDeg}deg ${midiDeg}deg,var(--blue) ${midiDeg}deg 360deg)`;
+}
+
+function formatBytes(bytes) {
+  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${bytes} B`;
 }
 
 // ── STEM CARD ─────────────────────────────────────────────────────────────────
