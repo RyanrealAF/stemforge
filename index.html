@@ -446,7 +446,21 @@ input[type=range].fader::-webkit-slider-thumb:hover { background: var(--text); }
 
 <script>
 // ── CONFIG ──────────────────────────────────────────────────────────────────
-const API_BASE = '';
+function resolveApiBase() {
+  const params = new URLSearchParams(window.location.search);
+  const apiParam = params.get('api') || params.get('hf_url');
+  if (apiParam) {
+    localStorage.setItem('stemforge_api_base', apiParam);
+    return apiParam;
+  }
+  const stored = localStorage.getItem('stemforge_api_base');
+  if (stored) return stored;
+
+  if (window.location.protocol === 'file:') return 'http://localhost:8000';
+  return '';
+}
+
+const API_BASE = resolveApiBase();
 const POLL_MS  = 1500;
 
 const STEMS = [
