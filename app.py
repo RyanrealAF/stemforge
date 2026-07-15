@@ -373,3 +373,29 @@ async def get_status(job_id: str):
         raise HTTPException(status_code=404, detail="Job not found")
     
     return JSONResponse(content=job)
+
+@app.get("/jobs/{job_id}")
+async def get_job(job_id: str):
+    """
+    Alias for /status/{job_id} used by index.html.
+    """
+    return await get_status(job_id)
+
+@app.get("/health")
+async def health_check():
+    """
+    Health check endpoint.
+    """
+    return {"status": "ok"}
+
+from fastapi.responses import HTMLResponse
+
+@app.get("/", response_class=HTMLResponse)
+async def serve_frontend():
+    """
+    Serves the root index.html.
+    """
+    if os.path.exists("index.html"):
+        with open("index.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    raise HTTPException(status_code=404, detail="index.html not found")
