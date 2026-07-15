@@ -450,11 +450,16 @@ function resolveApiBase() {
   const params = new URLSearchParams(window.location.search);
   const apiParam = params.get('api') || params.get('hf_url');
   if (apiParam) {
-    localStorage.setItem('stemforge_api_base', apiParam);
-    return apiParam;
+    const sanitized = apiParam.replace(/\/$/, '');
+    localStorage.setItem('stemforge_api_base', sanitized);
+    return sanitized;
   }
   const stored = localStorage.getItem('stemforge_api_base');
-  if (stored) return stored;
+  if (stored) {
+    const sanitized = stored.replace(/\/$/, '');
+    localStorage.setItem('stemforge_api_base', sanitized);
+    return sanitized;
+  }
 
   if (window.location.protocol === 'file:') return 'http://localhost:8000';
   return '';
@@ -628,14 +633,17 @@ function buildResults(job) {
   const fileMap = {};
   (job.files || []).forEach(f => {
     // filename like "drums.wav" or path "htdemucs_6s/trackname/drums.wav"
-    const base = f.filename.replace(/\.wav$/i, '').toLowerCase();
+    const base = f.filename.replace(/\.(wav|mid|midi)$/i, '').toLowerCase();
     fileMap[base] = f.url;
   });
 
   resultsMeta.textContent = `· ${job.filename || ''}`;
 
   STEMS.forEach(stem => {
-    const url = fileMap[stem.key];
+    let url = fileMap[stem.key];
+    if (url && !url.startsWith('http') && API_BASE) {
+      url = `${API_BASE}${url}`;
+    }
     const card = buildStemCard(stem, url);
     stemGrid.appendChild(card);
 
@@ -643,10 +651,13 @@ function buildResults(job) {
       // Build wavesurfer after DOM paint
       requestAnimationFrame(() => initWavesurfer(stem.key, url, stem.color));
 
+      // Determine extension
+      const ext = url.split('.').pop() || 'wav';
+
       // Download all link
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${stem.key}.wav`;
+      a.download = `${stem.key}.${ext}`;
       a.className = 'btn-dl-all';
       a.textContent = stem.key.toUpperCase();
       a.style.background = 'transparent';
@@ -677,6 +688,7 @@ function buildStemCard(stem, url) {
   if (url) card.classList.add('loaded');
 
   const sizeStr = url ? '—' : 'N/A';
+  const ext = url ? (url.split('.').pop() || 'wav') : 'wav';
 
   card.innerHTML = `
     <div class="stem-header">
@@ -693,7 +705,7 @@ function buildStemCard(stem, url) {
         <input type="range" class="fader" id="vol-${stem.key}" min="0" max="1" step="0.01" value="1" ${!url ? 'disabled' : ''}/>
         <span class="fader-val" id="volval-${stem.key}">100</span>
       </div>
-      ${url ? `<a class="btn-dl" href="${url}" download="${stem.key}.wav">
+      ${url ? `<a class="btn-dl" href="${url}" download="${stem.key}.${ext}">
         <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         DL
       </a>` : ''}

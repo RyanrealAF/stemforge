@@ -881,11 +881,16 @@ function resolveHfUrl() {
   const params = new URLSearchParams(window.location.search);
   const apiParam = params.get('api') || params.get('hf_url');
   if (apiParam) {
-    localStorage.setItem('stemforge_hf_url', apiParam);
-    return apiParam;
+    const sanitized = apiParam.replace(/\/$/, '');
+    localStorage.setItem('stemforge_hf_url', sanitized);
+    return sanitized;
   }
   const stored = localStorage.getItem('stemforge_hf_url');
-  if (stored) return stored;
+  if (stored) {
+    const sanitized = stored.replace(/\/$/, '');
+    localStorage.setItem('stemforge_hf_url', sanitized);
+    return sanitized;
+  }
 
   if (window.location.protocol === 'file:') return 'http://localhost:8000';
   return 'https://ryanrealaf-stemforge.hf.space';
