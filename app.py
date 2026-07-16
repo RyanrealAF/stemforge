@@ -1,5 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import asyncio
@@ -74,7 +74,8 @@ def get_separated_outputs(job_id: str):
                 "filename": filename,
                 "relative_path": relative_url_path,
                 "size": os.path.getsize(file_path),
-                "url": url
+                "url": url,
+                "analysis": build_file_analysis(filename, file_path)
             })
 
     outputs.sort(key=lambda output: output["relative_path"])
