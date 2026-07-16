@@ -63,14 +63,17 @@ class MidiGenerationTests(unittest.TestCase):
 
 class FrontendServingTests(unittest.TestCase):
     def test_serves_frontend_and_health_check_from_api_origin(self):
-        import asyncio
-        index_response = asyncio.run(app.serve_frontend())
-        self.assertEqual(index_response.status_code, 200)
-        self.assertIn("StemForge", index_response.body.decode())
-        self.assertIn("resolveApiBase", index_response.body.decode())
+        from fastapi.testclient import TestClient
+        client = TestClient(app.app)
 
-        health_response = asyncio.run(app.health_check())
-        self.assertEqual(health_response, {"status": "ok"})
+        index_response = client.get("/")
+        self.assertEqual(index_response.status_code, 200)
+        self.assertIn("StemForge", index_response.text)
+        self.assertIn("resolveApiBase", index_response.text)
+
+        health_response = client.get("/health")
+        self.assertEqual(health_response.status_code, 200)
+        self.assertEqual(health_response.json(), {"status": "ok"})
 
 
 if __name__ == "__main__":
