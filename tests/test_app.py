@@ -3,7 +3,6 @@ import os
 import tempfile
 import wave
 import unittest
-import asyncio
 
 import app
 
@@ -56,11 +55,6 @@ class MidiGenerationTests(unittest.TestCase):
             self.assertIn("htdemucs_6s/song/piano.mid", output_paths)
             self.assertIn("htdemucs_6s/song/guitar.mid", output_paths)
             self.assertIn("htdemucs_6s/song/bass.mid", output_paths)
-            analysis_by_path = {output["relative_path"]: output["analysis"] for output in outputs}
-            self.assertTrue(analysis_by_path["htdemucs_6s/song/piano.wav"]["is_expected_wav_stem"])
-            self.assertEqual(analysis_by_path["htdemucs_6s/song/piano.wav"]["process_stage"], "stem separation")
-            self.assertTrue(analysis_by_path["htdemucs_6s/song/piano.mid"]["is_midi_stem"])
-            self.assertEqual(analysis_by_path["htdemucs_6s/song/piano.mid"]["process_stage"], "midi transcription")
 
             for midi_path in midi_files:
                 with open(midi_path, "rb") as midi_file:
@@ -69,6 +63,7 @@ class MidiGenerationTests(unittest.TestCase):
 
 class FrontendServingTests(unittest.TestCase):
     def test_serves_frontend_and_health_check_from_api_origin(self):
+        import asyncio
         index_response = asyncio.run(app.serve_frontend())
         self.assertEqual(index_response.status_code, 200)
         self.assertIn("StemForge", index_response.body.decode())

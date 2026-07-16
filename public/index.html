@@ -55,7 +55,7 @@ body::after {
   content: '';
   position: fixed; inset: 0; pointer-events: none; z-index: 9999;
   opacity: .018;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E');
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
 }
 
 /* ── Header ── */
@@ -877,8 +877,22 @@ footer {
 const RHYTHMFORGE_URL = 'https://Ryanrealaf-rhythmforge.hf.space';
 
 // ── State ──────────────────────────────────────────────────────────
+function resolveHfUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const apiParam = params.get('api') || params.get('hf_url');
+  if (apiParam) {
+    localStorage.setItem('stemforge_hf_url', apiParam);
+    return apiParam;
+  }
+  const stored = localStorage.getItem('stemforge_hf_url');
+  if (stored) return stored;
+
+  if (window.location.protocol === 'file:') return 'http://localhost:8000';
+  return 'https://ryanrealaf-stemforge.hf.space';
+}
+
 const S = {
-  hfUrl:        'https://ryanrealaf-stemforge.hf.space',
+  hfUrl:        resolveHfUrl(),
   isPlaying:    false,
   isLoaded:     false,
   stemUrls:     {},
@@ -1115,9 +1129,15 @@ async function runPipeline(file) {
           const raw = await r.json();
           if (raw.status === 'complete') {
             clearInterval(poll); setProgress(88);
-            const files = raw.files || {};
+            const files = raw.files || [];
+            // raw.files is an array of objects: {filename: "vocals.wav", url: "/separated/...", size: 1234}
+            const fileMap = {};
+            files.forEach(f => {
+              const base = f.filename.replace(/\.(wav|mid|midi)$/i, '').toLowerCase();
+              fileMap[base] = f.url;
+            });
             ['vocals','bass','drums','other'].forEach(stem => {
-              const p = files[stem];
+              const p = fileMap[stem];
               if (p) S.stemUrls[stem] = p.startsWith('http') ? p : `${url}${p}`;
             });
             if (!Object.keys(S.stemUrls).length) reject(new Error('No file URLs in response'));

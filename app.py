@@ -39,33 +39,6 @@ jobs = {}
 MIDI_SOURCE_STEMS = ("piano", "guitar", "bass")
 MIDI_TICKS_PER_QUARTER = 480
 MIDI_TEMPO_MICROSECONDS = 500000
-STEM_ROLES = {
-    "vocals": "lead vocal / harmonic content",
-    "drums": "transient rhythm stem",
-    "bass": "low-frequency instrument stem",
-    "guitar": "string instrument stem",
-    "piano": "keyboard instrument stem",
-    "other": "residual harmonic bed",
-}
-
-@app.get("/", response_class=HTMLResponse)
-async def serve_frontend():
-    """
-    Serves the bundled single-page frontend from the API origin.
-
-    Keeping the UI and API on the same origin prevents browser fetch failures
-    caused by static hosting or file:// pages pointing at the wrong backend.
-    """
-    index_path = "index.html"
-    if not os.path.exists(index_path):
-        raise HTTPException(status_code=404, detail="Frontend index.html not found")
-
-    with open(index_path, "r", encoding="utf-8") as index_file:
-        return HTMLResponse(content=index_file.read())
-
-@app.get("/health")
-async def health_check():
-    return {"status": "ok"}
 
 def sanitize_filename(filename: str) -> str:
     """
@@ -107,29 +80,6 @@ def get_separated_outputs(job_id: str):
 
     outputs.sort(key=lambda output: output["relative_path"])
     return outputs
-
-def build_file_analysis(filename: str, file_path: str):
-    """
-    Returns lightweight per-file metadata for result dashboards.
-    """
-    stem_name, extension = os.path.splitext(filename)
-    extension = extension.lower().lstrip(".")
-    stem_key = stem_name.lower()
-    size_bytes = os.path.getsize(file_path)
-    is_midi = extension in ("mid", "midi")
-    is_wav = extension == "wav"
-
-    return {
-        "stem": stem_key,
-        "extension": extension,
-        "file_type": "midi" if is_midi else "audio" if is_wav else "other",
-        "process_stage": "midi transcription" if is_midi else "stem separation" if is_wav else "artifact export",
-        "role": STEM_ROLES.get(stem_key, "supporting separation artifact"),
-        "size_bytes": size_bytes,
-        "size_kb": round(size_bytes / 1024, 2),
-        "is_expected_wav_stem": is_wav and stem_key in STEM_ROLES,
-        "is_midi_stem": is_midi and stem_key in MIDI_SOURCE_STEMS,
-    }
 
 def encode_variable_length_quantity(value: int) -> bytes:
     """
@@ -427,4 +377,26 @@ async def get_status(job_id: str):
 
 @app.get("/jobs/{job_id}")
 async def get_job(job_id: str):
+    """
+    Alias for /status/{job_id} used by index.html.
+    """
     return await get_status(job_id)
+
+@app.get("/health")
+async def health_check():
+    """
+    Health check endpoint.
+    """
+    return {"status": "ok"}
+
+from fastapi.responses import HTMLResponse
+
+@app.get("/", response_class=HTMLResponse)
+async def serve_frontend():
+    """
+    Serves the root index.html.
+    """
+    if os.path.exists("index.html"):
+        with open("index.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    raise HTTPException(status_code=404, detail="index.html not found")
